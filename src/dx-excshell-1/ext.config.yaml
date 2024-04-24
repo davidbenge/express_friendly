@@ -1,0 +1,73 @@
+operations:
+  view:
+    - type: web
+      impl: index.html
+actions: actions
+web: web-src
+runtimeManifest:
+  packages:
+    dx-excshell-1:
+      license: Apache-2.0
+      actions:
+        getExpressAudit:
+          function: actions/getExpressAudit/index.js
+          web: 'yes'
+          runtime: nodejs:18
+          inputs:
+            LOG_LEVEL: debug
+          annotations:
+            require-adobe-auth: false
+            final: true
+        get-auth:
+          function: actions/get-auth/index.js
+          web: 'no'
+          runtime: nodejs:18
+          inputs:
+            LOG_LEVEL: debug
+            IMS: $IMS_ENDPOINT
+          annotations:
+            require-adobe-auth: false
+            final: true
+        getAemAssetData:
+          function: actions/getAemAssetData/index.js
+          web: 'yes'
+          runtime: nodejs:18
+          inputs:
+            LOG_LEVEL: debug
+            AEM_SERVICE_TECH_ACCOUNT_CLIENT_ID: $AEM_SERVICE_TECH_ACCOUNT_CLIENT_ID
+            AEM_SERVICE_TECH_ACCOUNT_ID: $AEM_SERVICE_TECH_ACCOUNT_ID
+            AEM_SERVICE_TECH_ACCOUNT_CLIENT_SECRET: $AEM_SERVICE_TECH_ACCOUNT_CLIENT_SECRET
+            AEM_SERVICE_TECH_ACCOUNT_ORG_ID: $AEM_SERVICE_TECH_ACCOUNT_ORG_ID
+            AEM_SERVICE_TECH_ACCOUNT_PRIVATE_KEY: $AEM_SERVICE_TECH_ACCOUNT_PRIVATE_KEY
+            AEM_SERVICE_TECH_ACCOUNT_META_SCOPES: $AEM_SERVICE_TECH_ACCOUNT_META_SCOPES
+          annotations:
+            require-adobe-auth: false
+            final: true
+        generic:
+          function: actions/generic/index.js
+          web: 'yes'
+          runtime: nodejs:18
+          inputs:
+            LOG_LEVEL: debug
+          annotations:
+            require-adobe-auth: true
+            final: true
+        getAemPresignedUrl:
+          function: actions/getAemPresignedUrl/index.js
+          web: 'no'
+          runtime: nodejs:18
+          inputs:
+            LOG_LEVEL: debug
+          annotations:
+            require-adobe-auth: false
+            final: true
+        onAemProcComplete:
+          function: actions/onAemProcComplete/index.js
+          web: 'yes'
+          runtime: nodejs:18
+          inputs:
+            LOG_LEVEL: debug
+            AEM_SERVICE_TECH_ACCOUNT_CLIENT_ID: $AEM_SERVICE_TECH_ACCOUNT_CLIENT_ID
+          annotations:
+            require-adobe-auth: false
+            final: true
