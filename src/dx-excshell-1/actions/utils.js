@@ -129,9 +129,58 @@ function errorResponse (statusCode, message, logger) {
   }
 }
 
-module.exports = {
+
+/**
+ * Set default content
+ * 
+ */
+function contentInit(params){
+  let content = {
+    "message": "success", 
+    "status": "ok"
+  }
+
+  /*
+  if(typeof params.debug !== 'undefined'){
+    content.debug = params.debug
+  }
+
+  if(typeof params.aemHost !== 'undefined'){
+    content.aemHost = params.aemHost
+  }
+
+  if(typeof params.aemAssetPath !== 'undefined'){
+    content.aemAssetPath = params.aemAssetPath
+  }
+
+  if(typeof params.manifest !== 'undefined'){
+    content.manifest = params.manifest
+  }
+
+  if(typeof params.aemHost !== 'undefined'){
+    content.aemHost = params.aemHost
+  }
+
+  if(typeof params.aemHost !== 'undefined'){
+    content.aemHost = params.aemHost
+  }  
+
+  if(typeof params.modules !== 'undefined'){
+    content.modules = params.modules
+  }
+
+  if(typeof params.artboardCount !== 'undefined'){
+    content.artboardCount = params.artboardCount
+  }
+  */
+
+  return content
+}
+
+module.exports = { 
   errorResponse,
   getBearerToken,
   stringParameters,
-  checkMissingRequestInputs
+  checkMissingRequestInputs,
+  contentInit
 }
