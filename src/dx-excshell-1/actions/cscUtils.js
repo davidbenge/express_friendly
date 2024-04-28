@@ -25,7 +25,7 @@ async function getAemServiceAccountToken(params,logger){
   const state = await State.init()
   const stateAuth = await state.get('aem-auth-key')
 
-  logger.debug("getAemServiceAccountToken pased state key")
+  logger.debug("getAemServiceAccountToken passed state key")
   //get from store if it exists
   if(typeof stateAuth === 'undefined' || typeof stateAuth.value === 'undefined' || stateAuth.value === null){
     const invokeParams = {
@@ -173,6 +173,17 @@ async function writeCommentToAsset(aemHost,aemAssetPath,comment,annotations,para
   }
 }
 
+/****
+ * Write json express compatibility report to comment
+ * 
+ * @param {string} aemHost aem host
+ * @param {string} aemAssetPath aem asset path
+ * @param {object} jsonReport json report object
+ * @param {object} params action input parameters.
+ * @param {object} logger logger object
+ * 
+ * @returns {object} resultData
+ */
 async function writeJsonExpressCompatibiltyReportToComment(aemHost,aemAssetPath,jsonReport,params,logger){
   let myReport = `
     Artboard count: ${jsonReport.artboardCount}
@@ -188,7 +199,9 @@ async function writeJsonExpressCompatibiltyReportToComment(aemHost,aemAssetPath,
   `
 
   let annotations
-  await writeCommentToAsset(aemHost,aemAssetPath, myReport,annotations,params,logger)
+  let returnData = await writeCommentToAsset(aemHost,aemAssetPath, myReport,annotations,params,logger)
+
+  return returnData
 }
 
 /**

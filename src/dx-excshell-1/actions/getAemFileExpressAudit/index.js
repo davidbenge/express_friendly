@@ -139,10 +139,7 @@ async function main (params) {
     }
 
     let annotations
-    const comment = content
-    delete comment["debug"]
-    delete comment["manifest"]
-    await writeJsonExpressCompatibiltyReportToComment("https://author-p113102-e1111829.adobeaemcloud.com","/content/dam/hsl_company/comercial/bu_b/paxlovid_global_know-plan-go_image_secondary-image-woman-14-4c-for-print_.psd", JSON.stringify(content),annotations,params,logger)
+    await writeJsonExpressCompatibiltyReportToComment("https://author-p113102-e1111829.adobeaemcloud.com","/content/dam/hsl_company/comercial/bu_b/paxlovid_global_know-plan-go_image_secondary-image-woman-14-4c-for-print_.psd",content,params,logger)
 
     const response = {
       statusCode: 200,
