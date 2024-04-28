@@ -154,7 +154,7 @@ async function writeCommentToAsset(aemHost,aemAssetPath,comment,annotations,para
 
   const fetchUrl = aemHost + aemAssetPath
   logger.debug("writeCommentToAsset fetchUrl: " + fetchUrl)
-  
+
   const aemAuthToken = await getAemAuth(params,logger)
 
   const res = await fetch(fetchUrl, {
@@ -171,6 +171,24 @@ async function writeCommentToAsset(aemHost,aemAssetPath,comment,annotations,para
   }else{
     return await res.json()
   }
+}
+
+async function writeJsonExpressCompatibiltyReportToComment(aemHost,aemAssetPath,jsonReport,params,logger){
+  let myReport = `
+    Artboard count: ${jsonReport.artboardCount}
+    artboard count ok: ${jsonReport.artboardCountOk}
+    bit depth: ${jsonReport.bitDepth}
+    height: ${jsonReport.height}
+    height ok: ${jsonReport.heightOk}
+    icc profile name: ${jsonReport.iccProfileName}
+    image mode: ${jsonReport.imageMode}
+    status: ${jsonReport.status}
+    width: ${jsonReport.width}
+    width ok: ${jsonReport.widthOk}
+  `
+
+  let annotations
+  await writeCommentToAsset(aemHost,aemAssetPath, myReport,annotations,params,logger)
 }
 
 /**
@@ -287,5 +305,6 @@ module.exports = {
   getFireflyServicesAuth,
   getPhotoshopManifest,
   getAemAssetData,
-  writeCommentToAsset
+  writeCommentToAsset,
+  writeJsonExpressCompatibiltyReportToComment
 }
