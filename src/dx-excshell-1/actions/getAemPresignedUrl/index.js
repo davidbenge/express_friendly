@@ -90,8 +90,6 @@ async function main (params) {
           }
         }
       }
-
-      
     }
 
     let response = {

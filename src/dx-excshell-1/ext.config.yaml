@@ -9,12 +9,19 @@ runtimeManifest:
     dx-excshell-1:
       license: Apache-2.0
       actions:
-        getExpressAudit:
-          function: actions/getExpressAudit/index.js
+        getAemFileExpressAudit:
+          function: actions/getAemFileExpressAudit/index.js
           web: 'yes'
           runtime: nodejs:18
           inputs:
             LOG_LEVEL: debug
+            AEM_SERVICE_TECH_ACCOUNT_CLIENT_ID: $AEM_SERVICE_TECH_ACCOUNT_CLIENT_ID
+            AEM_SERVICE_TECH_ACCOUNT_ID: $AEM_SERVICE_TECH_ACCOUNT_ID
+            AEM_SERVICE_TECH_ACCOUNT_CLIENT_SECRET: $AEM_SERVICE_TECH_ACCOUNT_CLIENT_SECRET
+            AEM_SERVICE_TECH_ACCOUNT_ORG_ID: $AEM_SERVICE_TECH_ACCOUNT_ORG_ID
+            AEM_SERVICE_TECH_ACCOUNT_PRIVATE_KEY: $AEM_SERVICE_TECH_ACCOUNT_PRIVATE_KEY
+            AEM_SERVICE_TECH_ACCOUNT_META_SCOPES: $AEM_SERVICE_TECH_ACCOUNT_META_SCOPES
+            AEM_USE_PASSED_AUTH: $GET_AEM_ASSET_DATA__AEM_USE_PASSED_AUTH
           annotations:
             require-adobe-auth: false
             final: true
@@ -40,6 +47,7 @@ runtimeManifest:
             AEM_SERVICE_TECH_ACCOUNT_ORG_ID: $AEM_SERVICE_TECH_ACCOUNT_ORG_ID
             AEM_SERVICE_TECH_ACCOUNT_PRIVATE_KEY: $AEM_SERVICE_TECH_ACCOUNT_PRIVATE_KEY
             AEM_SERVICE_TECH_ACCOUNT_META_SCOPES: $AEM_SERVICE_TECH_ACCOUNT_META_SCOPES
+            AEM_USE_PASSED_AUTH: $GET_AEM_ASSET_DATA__AEM_USE_PASSED_AUTH
           annotations:
             require-adobe-auth: false
             final: true

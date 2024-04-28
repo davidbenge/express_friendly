@@ -15,8 +15,9 @@
 
 
 const fetch = require('node-fetch')
-const { errorResponse, getBearerToken, stringParameters, checkMissingRequestInputs, contentInit, getAemServiceAccountToken } = require('../utils')
+const { errorResponse, getBearerToken, stringParameters, checkMissingRequestInputs, contentInit } = require('../utils')
 const { Core, State, Files, Logger } = require('@adobe/aio-sdk')
+const{ getAemAuth, getAemAssetData } = require('../cscUtils')
 
 // main function that will be executed by Adobe I/O Runtime
 async function main (params) {
@@ -61,24 +62,8 @@ async function main (params) {
       }
     }
     
-    let aemAuthToken = await getAemServiceAccountToken(params,logger)
-    
-    // fetch content from external api endpoint
-    const fetchUrl = params.aemHost + params.aemAssetPath + '.2.json'
-    const res = await fetch(fetchUrl, {
-      method: 'get',
-      headers: {
-        'Authorization': 'Bearer ' + aemAuthToken,
-        'Content-Type': 'application/json'
-      }
-    })
-    debuggerOutput('response: ' + res)
-    if (!res.ok) {
-      throw new Error('request to ' + fetchUrl + ' failed with status code ' + res.status)
-    }else{
-      debuggerOutput('response ok')
-      content.aemImageData = await res.json()
-    }
+    const callResult = await getAemAssetData(params.aemHost,params.aemAssetPath,params,logger)
+    content.aemImageData = callResult
 
     const response = {
       statusCode: 200,

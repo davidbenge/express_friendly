@@ -15,16 +15,18 @@
 
 
 const fetch = require('node-fetch')
-const { errorResponse, getBearerToken, stringParameters, checkMissingRequestInputs, contentInit } = require('../utils')
+const { errorResponse, checkMissingRequestInputs, contentInit, stringParameters } = require('../utils')
 const { Core, State, Files, Logger } = require('@adobe/aio-sdk')
-const openwhisk = require("openwhisk")
+const { getAemAssetData, writeCommentToAsset } = require('../cscUtils')
 
 // main function that will be executed by Adobe I/O Runtime
 async function main (params) {
   // create a Logger
   const logger = Core.Logger('main', { level: params.LOG_LEVEL || 'info' })
   
-  const actionName = 'checkArtboardCount'
+  logger.debug(stringParameters(params))
+
+  const actionName = 'expressAudit'
   let debuggerOutput = null
 
   moduleOutput = function(data){
@@ -51,8 +53,10 @@ async function main (params) {
         content.debug = {}
         content.debug[actionName] = []
       }
+    }
 
-      debuggerOutput = function(message){
+    debuggerOutput = function(message){
+      if(params.LOG_LEVEL === 'debug'){
         if(typeof message === 'string'){
           content.debug[actionName].push({"debugMessage":message})
         }else{
@@ -60,6 +64,16 @@ async function main (params) {
         }
       }
     }
+
+
+    // TODO: change order of the manifest checks
+    // 1. get aem asset data
+    // 2. get size and width and height
+    // 3. get manifest
+    // 4. eval manifest
+    // 5. Art board count
+    // 6. Smart object with non rasterized layers
+    // 7. Text layers with style
 
     content.artboardCount = 0
     debuggerOutput('manifest clean')
@@ -72,6 +86,9 @@ async function main (params) {
       manifestClean = params.manifest
     }
     
+    //output params to output structure
+    //debuggerOutput(params)
+
     // too many artboards?
     const numberOfArtBoardsInManifest = (manifest) => {
       if (typeof manifest !== "object") {
@@ -104,29 +121,28 @@ async function main (params) {
     content.iccProfileName = manifestClean.outputs[0].document.iccProfileName
     content.imageMode = manifestClean.outputs[0].document.imageMode
 
-    let invokeParams = {}
-    invokeParams.aemAssetPath = '/content/dam/hsl_company/comercial/bu_b/paxlovid_global_know-plan-go_image_primary-image-woman-2-with-covid-ball_.psd'
-    invokeParams.aemHost = 'https://author-p113102-e1111829.adobeaemcloud.com'
+    // Change this to the path of the image you want to check
+    const aemImageData = await getAemAssetData("https://author-p113102-e1111829.adobeaemcloud.com","/content/dam/hsl_company/comercial/bu_b/paxlovid_global_know-plan-go_image_secondary-image-woman-14-4c-for-print_.psd",params,logger)
+    debuggerOutput('aemImageData')
+    debuggerOutput(aemImageData)
 
-    // check file size 
-    let ow = openwhisk()
-    let invokeResult = await ow.actions.invoke({
-      name: 'dx-excshell-1/getAemAssetData', // the name of the action to invoke
-      blocking: true, // this is the flag that instructs to execute the worker asynchronous
-      result: true,
-      params: invokeParams
-    });
-
-    if(typeof invokeResult.body !== 'undefined' && typeof invokeResult.body.aemImageData !== 'undefined'){
-      // success
-      //content.aemImageMetaData = invokeResult.body.aemImageData
-      //content.aemImageMetaDataType = typeof invokeResult.body.aemImageData
-      content.size = invokeResult.body.aemImageData['jcr:content']['metadata']['dam:size']
+    if(typeof aemImageData !== 'undefined' && typeof aemImageData.body !== 'undefined'){
+      debuggerOutput("aem file got image data")
+      debuggerOutput(aemImageData)
+      content.size = aemImageData.body.aemImageData['jcr:content']['metadata']['dam:size']
       content.sizeOk = content.size > 520093696 ? false : true
       content.status = content.sizeOk ? 'ok' : 'error'
     }else{
+      debuggerOutput(aemImageData)
+      debuggerOutput("failed to get aem file data")
       logger.error("Failed to get aem file data")
     }
+
+    let annotations
+    const comment = content
+    delete comment["debug"]
+    delete comment["manifest"]
+    await writeCommentToAsset("https://author-p113102-e1111829.adobeaemcloud.com","/content/dam/hsl_company/comercial/bu_b/paxlovid_global_know-plan-go_image_secondary-image-woman-14-4c-for-print_.psd", JSON.stringify(content),annotations,params,logger)
 
     const response = {
       statusCode: 200,
