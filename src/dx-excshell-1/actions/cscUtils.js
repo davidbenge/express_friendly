@@ -42,7 +42,7 @@ async function getAemServiceAccountToken(params,logger){
     // call the other get-auth app builder action
     let invokeResult = await ow.actions.invoke({
       name: 'dx-excshell-1/get-auth', // the name of the action to invoke
-      blocking: true, // this is the flag that instructs to execute the worker asynchronous
+      blocking: false, // this is the flag that instructs to execute the worker asynchronous
       result: true,
       params: invokeParams
       });
@@ -300,7 +300,8 @@ async function getPhotoshopManifest(targetAssetPresignedUrl,params,logger){
     headers: {
       'Authorization': 'Bearer ' + fireflyApiAuth,
       'Content-Type': 'application/json',
-      'x-api-key': params.FIREFLY_SERVICES_CLIENT_ID
+      'x-api-key': params.FIREFLY_SERVICES_CLIENT_ID,
+      'x-gw-ims-org-id': params.FIREFLY_SERVICES_ORG_ID
     }
   })
 

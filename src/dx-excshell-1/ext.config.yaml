@@ -22,6 +22,7 @@ runtimeManifest:
             AEM_SERVICE_TECH_ACCOUNT_PRIVATE_KEY: $AEM_SERVICE_TECH_ACCOUNT_PRIVATE_KEY
             AEM_SERVICE_TECH_ACCOUNT_META_SCOPES: $AEM_SERVICE_TECH_ACCOUNT_META_SCOPES
             AEM_USE_PASSED_AUTH: $GET_AEM_ASSET_DATA__AEM_USE_PASSED_AUTH
+            FIREFLY_SERVICES_ORG_ID: $FIREFLY_SERVICES_ORG_ID
           annotations:
             require-adobe-auth: false
             final: true
@@ -76,6 +77,23 @@ runtimeManifest:
           inputs:
             LOG_LEVEL: debug
             AEM_SERVICE_TECH_ACCOUNT_CLIENT_ID: $AEM_SERVICE_TECH_ACCOUNT_CLIENT_ID
+          annotations:
+            require-adobe-auth: false
+            final: true
+        onPsApiProcComplete:
+          function: actions/onPsApiProcComplete/index.js
+          web: 'yes'
+          runtime: nodejs:18
+          inputs:
+            LOG_LEVEL: debug
+            AEM_SERVICE_TECH_ACCOUNT_CLIENT_ID: $AEM_SERVICE_TECH_ACCOUNT_CLIENT_ID
+            AEM_SERVICE_TECH_ACCOUNT_ID: $AEM_SERVICE_TECH_ACCOUNT_ID
+            AEM_SERVICE_TECH_ACCOUNT_CLIENT_SECRET: $AEM_SERVICE_TECH_ACCOUNT_CLIENT_SECRET
+            AEM_SERVICE_TECH_ACCOUNT_ORG_ID: $AEM_SERVICE_TECH_ACCOUNT_ORG_ID
+            AEM_SERVICE_TECH_ACCOUNT_PRIVATE_KEY: $AEM_SERVICE_TECH_ACCOUNT_PRIVATE_KEY
+            AEM_SERVICE_TECH_ACCOUNT_META_SCOPES: $AEM_SERVICE_TECH_ACCOUNT_META_SCOPES
+            AEM_USE_PASSED_AUTH: $GET_AEM_ASSET_DATA__AEM_USE_PASSED_AUTH
+            FIREFLY_SERVICES_ORG_ID: $FIREFLY_SERVICES_ORG_ID
           annotations:
             require-adobe-auth: false
             final: true
