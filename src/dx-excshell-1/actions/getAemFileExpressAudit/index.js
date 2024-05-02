@@ -17,7 +17,7 @@
 const fetch = require('node-fetch')
 const { errorResponse, checkMissingRequestInputs, contentInit, stringParameters } = require('../utils')
 const { Core, State, Files, Logger } = require('@adobe/aio-sdk')
-const { getAemAssetData, writeCommentToAsset, writeJsonExpressCompatibiltyReportToComment } = require('../cscUtils')
+const { getAemAssetData, writeCommentToAsset, writeJsonExpressCompatibiltyReportToComment } = require('../aemCscUtils')
 
 // main function that will be executed by Adobe I/O Runtime
 async function main (params) {
@@ -38,7 +38,7 @@ async function main (params) {
     logger.info('Calling the main check manifest function')
 
     // check for missing request input parameters and headers
-    const requiredParams = ['manifest']
+    const requiredParams = ['manifest','aemHost','aemAssetPath']
     const requiredHeaders = []
     const errorMessage = checkMissingRequestInputs(params, requiredParams, requiredHeaders)
     if (errorMessage) {
@@ -65,16 +65,6 @@ async function main (params) {
       }
     }
 
-
-    // TODO: change order of the manifest checks
-    // 1. get aem asset data
-    // 2. get size and width and height
-    // 3. get manifest
-    // 4. eval manifest
-    // 5. Art board count
-    // 6. Smart object with non rasterized layers
-    // 7. Text layers with style
-
     content.artboardCount = 0
     debuggerOutput('manifest clean')
     let manifestClean
@@ -89,7 +79,18 @@ async function main (params) {
     //output params to output structure
     //debuggerOutput(params)
 
-    // too many artboards?
+    /**** 
+     * Checks logic 
+     * 
+     * 1. get size < 500mb
+     * 2. Art board count
+     * 3. Smart object with non rasterized layers
+     * 4. Text layers with style
+     * 5. width and height < 8k
+     * 
+     * */
+
+    // too many artboards?  #2
     const numberOfArtBoardsInManifest = (manifest) => {
       if (typeof manifest !== "object") {
         console.error("manifest needs to be an object")
@@ -112,35 +113,48 @@ async function main (params) {
     content.artboardCountOk = content.artboardCount > 2 ? false : true
     content.status = content.artboardCountOk ? 'ok' : 'error'
     content.bitDepth = manifestClean.outputs[0].document.bitDepth
+    // 5. width and height < 8k
     content.width = manifestClean.outputs[0].document.width
     content.widthOk = content.width > 8000 ? false : true
     content.status = content.widthOk ? 'ok' : 'error'
+    // 5. width and height < 8k
     content.height = manifestClean.outputs[0].document.height
     content.heightOk = content.height > 8000 ? false : true
     content.status = content.heightOk ? 'ok' : 'error'
     content.iccProfileName = manifestClean.outputs[0].document.iccProfileName
     content.imageMode = manifestClean.outputs[0].document.imageMode
 
-    // Change this to the path of the image you want to check
-    const aemImageData = await getAemAssetData("https://author-p113102-e1111829.adobeaemcloud.com","/content/dam/hsl_company/comercial/bu_b/paxlovid_global_know-plan-go_image_secondary-image-woman-14-4c-for-print_.psd",params,logger)
-    debuggerOutput('aemImageData')
-    debuggerOutput(aemImageData)
-
-    if(typeof aemImageData !== 'undefined' && typeof aemImageData.body !== 'undefined'){
-      debuggerOutput("aem file got image data")
-      debuggerOutput(aemImageData)
-      content.size = aemImageData.body.aemImageData['jcr:content']['metadata']['dam:size']
+    //if the call was done after events collected all the needed aem data we can skip hitting aem again
+    // 1. get size < 500mb
+    if(typeof params.jobSecodaryData !== 'undefined'){
+      content.size = params.jobSecodaryData.aemAssetSize
       content.sizeOk = content.size > 520093696 ? false : true
       content.status = content.sizeOk ? 'ok' : 'error'
-    }else{
-      debuggerOutput(aemImageData)
-      debuggerOutput("failed to get aem file data")
-      logger.error("Failed to get aem file data")
     }
+    else{
+      // Change this to the path of the image you want to check
+      const aemImageData = await getAemAssetData(params.aemHost,params.aemAssetPath,params,logger)
+      debuggerOutput('aemImageData')
+      debuggerOutput(aemImageData)
 
-    let annotations
-    await writeJsonExpressCompatibiltyReportToComment("https://author-p113102-e1111829.adobeaemcloud.com","/content/dam/hsl_company/comercial/bu_b/paxlovid_global_know-plan-go_image_secondary-image-woman-14-4c-for-print_.psd",content,params,logger)
+      if(typeof aemImageData !== 'undefined' && typeof aemImageData.body !== 'undefined'){
+        debuggerOutput("aem file got image data")
+        debuggerOutput(aemImageData)
+        content.size = aemImageData.body.aemImageData['jcr:content']['metadata']['dam:size']
+        content.sizeOk = content.size > 520093696 ? false : true
+        content.status = content.sizeOk ? 'ok' : 'error'
+      }else{
+        debuggerOutput(aemImageData)
+        debuggerOutput("failed to get aem file data")
+        logger.error("Failed to get aem file data")
+      }
+    } 
 
+    // Write the report to the asset
+    await writeJsonExpressCompatibiltyReportToComment(params.aemHost,params.aemAssetPath,content,params,logger)
+
+    //TODO: write a metadata tag to the asset with the status of the audit
+    
     const response = {
       statusCode: 200,
       body: content

@@ -17,7 +17,7 @@
 const fetch = require('node-fetch')
 const { errorResponse, getBearerToken, stringParameters, checkMissingRequestInputs, contentInit } = require('../utils')
 const { Core, State, Files, Logger } = require('@adobe/aio-sdk')
-const{ getAemAuth, getAemAssetData } = require('../cscUtils')
+const{ getAemAuth, getAemAssetData } = require('../aemCscUtils')
 
 // main function that will be executed by Adobe I/O Runtime
 async function main (params) {

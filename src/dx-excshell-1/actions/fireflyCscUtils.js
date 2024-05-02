@@ -1,0 +1,138 @@
+/* 
+* <license header>
+*/
+
+/* This file exposes some common CSC related utilities for your actions */
+const { getBearerToken, stringParameters } = require('./utils')
+const { Core, State, Files } = require('@adobe/aio-sdk')
+const openwhisk = require("openwhisk")
+const fetch = require('node-fetch')
+
+/**
+ * Get Firefly services service account token
+ * 
+ * @param {object} params action input parameters.
+ * @param {object} logger logger object
+ * 
+ * @returns {string} fireflyApiAuthToken
+ */
+async function getFireflyServicesServiceAccountToken(params,logger){
+   //ff auth key from cache 
+   logger.debug("getFireflyServicesServiceAccountToken getting token from state")
+   //logger.debug(JSON.stringify(params, null, 2))
+   let authToken
+   const state = await State.init()
+   const stateAuth = await state.get('firefly-service-auth-key')
+   
+   //get from store if it exists
+  if(typeof stateAuth === 'undefined' || typeof stateAuth.value === 'undefined' || stateAuth.value === null){
+    // build login form for getting auth
+    const formBody = new URLSearchParams({
+      "client_id":`${params.FIREFLY_SERVICES_CLIENT_ID}`,
+      "client_secret":`${params.FIREFLY_SERVICES_CLIENT_SECRET}`,
+      "grant_type":"client_credentials",
+      "scope":`${params.FIREFLY_SERVICES_SCOPES}`
+    })
+
+    logger.debug("getFireflyServicesServiceAccountToken no existing token in state")
+    const fetchUrl = 'https://ims-na1.adobelogin.com/ims/token/v3'
+    const rec = await fetch(fetchUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded', 
+        'Accept': 'application/json'
+    },
+      body: formBody
+    })
+
+    if(rec.ok){
+      let responseContent = await rec.json()
+      // if not reqeust a new one and put it in the store
+      logger.debug(`getFireflyServicesServiceAccountToken got new one from service and saving to state ${JSON.stringify(responseContent, null, 2)}`)
+      authToken = responseContent.access_token
+      
+      await state.put('firefly-service-auth-key', authToken, { ttl: 79200 }) // -1 for max expiry (365 days), defaults to 86400 (24 hours) 79200 is 22 hours
+
+      return authToken
+    }else{
+      logger.debug("getFireflyServicesServiceAccountToken no new token from service error")
+      logger.debug(JSON.stringify(rec, null, 2))
+      logger.error("Failed to get firefly services auth token")
+      throw new Error('request to ' + fetchUrl + ' failed with status code ' + rec.status)
+    }
+  }else{
+    logger.debug(`getFireflyServicesServiceAccountToken got existing token from state ${JSON.stringify(stateAuth.value)}` )
+    return stateAuth.value
+  }
+}
+
+/****
+ * Get Firefly services auth from right place
+ */
+async function getFireflyServicesAuth(params,logger){
+  logger.debug("getFireflyServicesAuth")
+  logger.debug(stringParameters(params))
+  if(params.FIREFLY_SERVICES_USE_PASSED_AUTH === 'true'){
+    logger.debug("getFireflyServicesAuth Bearer Token")
+    return getBearerToken(params)
+  }else{
+    logger.debug("getFireflyServicesAuth getting new token from state or service")
+    return await getFireflyServicesServiceAccountToken(params,logger)
+  }
+}
+
+/***
+ * Get photoshop manifest
+ * will fire IO Event when complete
+ * 
+ * @param {string} targetAssetPresignedUrl presigned url to the photoshop file
+ * @param {string} psApiClientId photoshop api client id
+ * @param {string} psApiAuthToken photoshop api auth token
+ * @param {object} logger logger object
+ * 
+ */
+async function getPhotoshopManifestForPresignedUrl(targetAssetPresignedUrl,params,logger){
+  logger.debug("in getPhotoshopManifestForPresignedUrl")
+  logger.debug(JSON.stringify(params, null, 2))
+  logger.debug("in getPhotoshopManifestForPresignedUrl before getFireflyServicesAuth ")
+  const fetchUrl = 'https://image.adobe.io/pie/psdService/documentManifest'
+  const fireflyApiAuth = await getFireflyServicesAuth(params,logger)
+  const psApiManifestBody = {
+    "inputs": [
+      {
+        "href":`${targetAssetPresignedUrl}`,
+        "storage":"external"
+      }
+    ]
+  }
+
+  let callHeaders = {
+    'Authorization': `Bearer ${fireflyApiAuth}`,
+    'Content-Type': 'application/json',
+    'x-api-key': `${params.FIREFLY_SERVICES_CLIENT_ID}`,
+  }
+  if(typeof params.throwIoEvent !== 'undefined' && params.throwIoEvent === 'true' || params.throwIoEvent === true){
+    callHeaders['x-gw-ims-org-id'] = `${params.FIREFLY_SERVICES_ORG_ID}`
+  }
+
+  logger.debug("in getPhotoshopManifest before fetch ")
+  logger.debug(JSON.stringify(callHeaders, null, 2))
+  const res = await fetch(fetchUrl, {
+    method: 'post',
+    headers: callHeaders,
+    body: JSON.stringify(psApiManifestBody)
+  })
+
+  if (!res.ok) {
+    throw new Error('request to ' + fetchUrl + ' failed with status code ' + res.status)
+  }else{
+    logger.debug("in getPhotoshopManifestForPresignedUrl was successful ")
+    const resultData = await res.json()
+    return resultData
+  }
+}
+
+module.exports = {
+  getFireflyServicesAuth,
+  getPhotoshopManifestForPresignedUrl
+}

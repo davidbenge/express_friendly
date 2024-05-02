@@ -1,0 +1,23 @@
+{
+    "specversion": "1.0",
+    "type": "aem.assets.asset.processing_completed",
+    "source": "acct:aem-p113102-e1111829@adobe.com",
+    "id": "ba44d568-1d22-43e1-8262-a28c1ae50934",
+    "time": "2024-04-23T23:57:09.99387Z",
+    "datacontenttype": "application/json",
+    "data": {
+        "assetId": "urn:aaid:aem:68c59672-dd19-48dd-87b1-83921aa4c735",
+        "repositoryMetadata": {
+            "repo:repositoryId": "author-p113102-e1111829.adobeaemcloud.com",
+            "dc:format": "image/vnd.adobe.photoshop",
+            "repo:assetClass": "file",
+            "repo:assetId": "urn:aaid:aem:68c59672-dd19-48dd-87b1-83921aa4c735",
+            "repo:version": "1.1::ci:b3e9f552ba8e5df57537b30a4fcc02d5",
+            "repo:name": "RSVpreF_Global_GLB-Import_Implementation-Guide-Source_HCP-Every-Breath-Matters-Campaign-Imagery-A_PP-RES-GLB-0026.psd",
+            "repo:size": "508139017",
+            "repo:path": "/content/dam/hsl_company/comercial/bu_b/RSVpreF_Global_GLB-Import_Implementation-Guide-Source_HCP-Every-Breath-Matters-Campaign-Imagery-A_PP-RES-GLB-0026.psd",
+            "repo:createdBy": "DBENGE@ADOBE.COM",
+            "repo:ancestors": [
+                "urn:aaid:aem:4b1721b8-f11b-4fbc-9eb7-060106435b62"
+            ],"repo:state
+

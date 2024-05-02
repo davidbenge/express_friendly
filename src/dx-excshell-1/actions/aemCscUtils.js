@@ -42,7 +42,7 @@ async function getAemServiceAccountToken(params,logger){
     // call the other get-auth app builder action
     let invokeResult = await ow.actions.invoke({
       name: 'dx-excshell-1/get-auth', // the name of the action to invoke
-      blocking: false, // this is the flag that instructs to execute the worker asynchronous
+      blocking: true, // this is the flag that instructs to execute the worker asynchronous
       result: true,
       params: invokeParams
       });
@@ -92,6 +92,70 @@ async function getAemAssetData(aemHost,aemAssetPath,params,logger){
     throw new Error('request to ' + fetchUrl + ' failed with status code ' + res.status)
   }else{
     return await res.json()
+  }
+}
+
+/***
+ * Get AEM Asset data from repo
+ * 
+ * @param {string} aemHost aem host
+ * @param {string} aemAssetPath aem asset path
+ * @param {object} params action input parameters.
+ * @param {object} logger logger object
+ * 
+ * @returns {object} resultData
+ */
+async function getAemAssetDataRapi(aemHost,aemAssetPath,params,logger){
+  const fetchUrl = `${aemHost}/adobe/repository?path=${aemAssetPath}`
+  const aemAuthToken = await getAemAuth(params,logger)
+
+  const res = await fetch(fetchUrl, {
+    method: 'get',
+    headers: {
+      'Authorization': 'Bearer ' + aemAuthToken,
+      'Content-Type': 'application/json',
+      'x-api-key': params.AEM_SERVICE_TECH_ACCOUNT_CLIENT_ID
+    }
+  })
+  
+  if (!res.ok) {
+    throw new Error('getAemAssetDataRapi request to ' + fetchUrl + ' failed with status code ' + res.status)
+  }else{
+    return await res.json()
+  }
+}
+
+/***
+ * Get AEM Asset presigned url
+ * 
+ * @param {string} aemHost aem host
+ * @param {string} aemAssetPath aem asset path
+ * @param {object} params action input parameters.
+ * @param {object} logger logger object
+ * 
+ * @returns {string} presigned dowload url
+ */
+async function getAemAssetPresignedDownloadUrl(aemHost,aemAssetPath,params,logger){
+  // get repo data
+  const assetRepoData = await getAemAssetDataRapi(aemHost,aemAssetPath,params,logger)
+
+  //get download link  TODO
+  const fetchUrl = assetRepoData['_links']['http://ns.adobe.com/adobecloud/rel/download'].href
+  const aemAuthToken = await getAemAuth(params,logger)
+
+  const res = await fetch(fetchUrl, {
+    method: 'get',
+    headers: {
+      'Authorization': 'Bearer ' + aemAuthToken,
+      'Content-Type': 'application/json',
+      'x-api-key': params.AEM_SERVICE_TECH_ACCOUNT_CLIENT_ID
+    }
+  })
+  
+  if (!res.ok) {
+    throw new Error('getAemAssetPresignedDownloadUrl request to ' + fetchUrl + ' failed with status code ' + res.status)
+  }else{
+    return await res.json().href
   }
 }
 
@@ -204,41 +268,52 @@ async function writeJsonExpressCompatibiltyReportToComment(aemHost,aemAssetPath,
   return returnData
 }
 
-/**
- * Get Firefly services service account token
+/****
+ * Write a tag onto an asset
  * 
+ * @param {string} aemHost aem host
+ * @param {string} aemAssetPath aem asset path
+ * @param {object} tag 
  * @param {object} params action input parameters.
  * @param {object} logger logger object
  * 
- * @returns {string} fireflyApiAuthToken
+ * @returns {object} resultData
+ * 
+ * TODO: finsh
  */
-async function getFireflyServicesServiceAccountToken(params,logger){
-   //ff auth key from cache 
-   let ffAuthToken
-   const state = await State.init()
-   const stateAuth = await state.get('ff-service-auth-key')
+async function aemAssetAddMetadata(aemHost,aemAssetPath,tag,params,logger){
+  aemAssetPath = aemAssetPath.replace("/content/dam","/api/assets")
+  if(aemAssetPath.indexOf("/api/assets") < 0){
+    aemAssetPath = "/api/assets" + aemAssetPath
+  }
+  aemAssetPath = aemAssetPath + "/comments/*"
 
-   //get from store if it exists
-  if(typeof stateAuth === 'undefined' || typeof stateAuth.value === 'undefined' || stateAuth.value === null){
-    const fetchUrl = 'https://ims-na1.adobelogin.com/ims/token/v3'
-    const rec = await fetch(fetchUrl, {
-      method: 'post',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      body: `client_id=${params.FIREFLY_SERVICES_CLIENT_ID}&client_secret=${params.FIREFLY_SERVICES_CLIENT_SECRET}&grant_type=client_credentials&scope=${params.FIREFLY_SERVICES_SCOPES}`
-    })
+  logger.debug("writeCommentToAsset aemAssetPath path is : " + aemAssetPath +  " we are starting the form build")
+  const form = new FormData()
+  form.append('message', comment)
 
-    if(rec.ok){
-      // if not reqeust a new one and put it in the store
-     authToken = rec.body.access_token
-      
-      await state.put('ff-service-auth-key', authToken, { ttl: 79200 }) // -1 for max expiry (365 days), defaults to 86400 (24 hours) 79200 is 22 hours
-    }else{
-      logger.error("Failed to get AEM auth token")
-    }
+  //if(typeof annotations != null && typeof annotations === 'object' && Object.keys(annotations).length > 0){
+  //  form.append('annotationData', annotations)
+  //}
+
+  const fetchUrl = aemHost + aemAssetPath
+  logger.debug("writeCommentToAsset fetchUrl: " + fetchUrl)
+
+  const aemAuthToken = await getAemAuth(params,logger)
+
+  const res = await fetch(fetchUrl, {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer ' + aemAuthToken
+    },
+    body:form
+  })
+  logger.debug("writeCommentToAsset res: " + JSON.stringify(res)) 
+  
+  if (!res.ok) {
+    throw new Error('request to ' + fetchUrl + ' writeCommentToAsset failed with status code ' + res.status)
   }else{
-    return stateAuth.value
+    return await res.json()
   }
 }
 
@@ -256,69 +331,12 @@ async function getAemAuth(params,logger){
   }
 }
 
-/****
- * Get Firefly services auth from right place
- */
-async function getFireflyServicesAuth(params,logger){
-  if(params.FIREFLY_SERVICES_USE_PASSED_AUTH === 'true'){
-    return getBearerToken(params)
-  }else{
-    return await getFireflyServicesServiceAccountToken(params,logger)
-  }
-}
-
-/***
- * Get photoshop manifest
- * 
- * @param {string} targetAssetPresignedUrl presigned url to the photoshop file
- * @param {string} psApiClientId photoshop api client id
- * @param {string} psApiAuthToken photoshop api auth token
- * @param {object} logger logger object
- * 
- */
-async function getPhotoshopManifest(targetAssetPresignedUrl,params,logger){
-  const psApiManifestUrl = 'https://image.adobe.io/pie/psdService/documentManifest'
-  const psApiManifestBody = {
-    "inputs": [
-      {
-        "storage": "external",
-        "href": presignedUrl
-      }
-    ],
-    "options": {
-      "thumbnails": {
-        "type": "image/jpeg"
-      }
-    }
-  }
-
-  const fireflyApiAuth = await getFireflyServicesAuth(params,logger)
-  const fetchUrl = psApiManifestUrl
-  let resultData
-  const res = await fetch(fetchUrl, {
-    method: 'post',
-    headers: {
-      'Authorization': 'Bearer ' + fireflyApiAuth,
-      'Content-Type': 'application/json',
-      'x-api-key': params.FIREFLY_SERVICES_CLIENT_ID,
-      'x-gw-ims-org-id': params.FIREFLY_SERVICES_ORG_ID
-    }
-  })
-
-  if (!res.ok) {
-    throw new Error('request to ' + fetchUrl + ' failed with status code ' + res.status)
-  }else{
-    resultData = await res.json()
-  }
-
-  return resultData
-}
-
 module.exports = {
   getAemAuth,
-  getFireflyServicesAuth,
-  getPhotoshopManifest,
   getAemAssetData,
   writeCommentToAsset,
-  writeJsonExpressCompatibiltyReportToComment
+  writeJsonExpressCompatibiltyReportToComment,
+  getAemAssetDataRapi,
+  getAemAssetPresignedDownloadUrl,
+  aemAssetAddMetadata
 }

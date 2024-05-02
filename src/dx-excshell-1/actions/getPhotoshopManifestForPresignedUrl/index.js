@@ -6,9 +6,9 @@
  * This will expose a presigned url to map to an aem file
  */
 
-
+const { Core } = require('@adobe/aio-sdk')
 const { errorResponse, getBearerToken, stringParameters, checkMissingRequestInputs } = require('../utils')
-const { getAemAssetPresignedDownloadUrl } = require('../aemCscUtils')
+const { getPhotoshopManifestForPresignedUrl } = require('../fireflyCscUtils')
 
 // main function that will be executed by Adobe I/O Runtime
 async function main (params) {
@@ -17,14 +17,14 @@ async function main (params) {
 
   try {
     // 'info' is the default level if not set
-    logger.info('Calling the main action get-presigned-url')
+    logger.info('Calling the main action getPhotoshopManifestForPresignedUrl')
 
     // log parameters, only if params.LOG_LEVEL === 'debug'
-    logger.debug(stringParameters(params))
+    logger.debug(JSON.stringify(params, null, 2))
 
     let outputContent = {}
      // check for missing request input parameters and headers
-     const requiredParams = ['aemHost','aemAssetPath']
+     const requiredParams = ['presignedUrl']
      const requiredHeaders = []
      const errorMessage = checkMissingRequestInputs(params, requiredParams, requiredHeaders)
      if (errorMessage) {
@@ -33,11 +33,9 @@ async function main (params) {
      }
 
     // get presigned url
-    const presignedUrl = await getAemAssetPresignedDownloadUrl(params.aemHost,params.aemAssetPath,params,logger)
+    const manifestResults = await getPhotoshopManifestForPresignedUrl(params.presignedUrl,params,logger)
 
-    outputContent.presignedUrl = presignedUrl
-    outputContent.aemHost = params.aemHost
-    outputContent.aemAssetPath = params.aemAssetPath
+    outputContent.manifestRequest = manifestResults
 
     let response = {
       statusCode: 200,
