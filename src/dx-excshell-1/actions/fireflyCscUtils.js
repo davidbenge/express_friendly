@@ -134,5 +134,6 @@ async function getPhotoshopManifestForPresignedUrl(targetAssetPresignedUrl,param
 
 module.exports = {
   getFireflyServicesAuth,
-  getPhotoshopManifestForPresignedUrl
+  getPhotoshopManifestForPresignedUrl,
+  getFireflyServicesServiceAccountToken
 }
