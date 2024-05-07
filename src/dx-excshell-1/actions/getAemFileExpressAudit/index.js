@@ -1,37 +1,34 @@
-/*
-* <license header>
-*/
-
 /**
- * This is a sample action showcasing how to access an external API
+ * getAemFileExpressAudit
  *
- * Note:
- * You might want to disable authentication and authorization checks against Adobe Identity Management System for a generic action. In that case:
- *   - Remove the require-adobe-auth annotation for this action in the manifest.yml of your application
- *   - Remove the Authorization header from the array passed in checkMissingRequestInputs
- *   - The two steps above imply that every client knowing the URL to this deployed action will be able to invoke it without any authentication and authorization checks against Adobe Identity Management System
- *   - Make sure to validate these changes against your security requirements before deploying the action
+ * Using the aem repo path,  asset path and psd manifest passed into this function we evaluate the data and build a report.  
+ * After we have completed the complete audit we write the results to the assets comments and IF the asset passed all checks we 
+ * put a "express safe" metadata marker on the asset.
+ * 
+ * this main method requires the following parameters:
+ * manifest - the manifest object from the photoshop file
+ * aemHost - the aem host
+ * aeAssetPath - the aem asset path
+ * and optional jobSecodaryData - this is the data from the job that was processed before this action was called.  This avoids us having to hit aem again to get the asset size.
+ * 
  */
 
 
 const fetch = require('node-fetch')
 const { errorResponse, checkMissingRequestInputs, contentInit, stringParameters } = require('../utils')
 const { Core, State, Files, Logger } = require('@adobe/aio-sdk')
-const { getAemAssetData, writeCommentToAsset, writeJsonExpressCompatibiltyReportToComment } = require('../aemCscUtils')
+const { getAemAssetData, writeJsonExpressCompatibiltyReportToComment, addMetadataToAemAsset } = require('../aemCscUtils')
+const { AssetReportEngine } = require('../assetReport')
 
 // main function that will be executed by Adobe I/O Runtime
 async function main (params) {
   // create a Logger
   const logger = Core.Logger('main', { level: params.LOG_LEVEL || 'info' })
-  
+  const content = contentInit(params) 
   logger.debug(stringParameters(params))
 
   const actionName = 'expressAudit'
   let debuggerOutput = null
-
-  moduleOutput = function(data){
-    content.modules[actionName] = data
-  }
   
   try {
     // 'info' is the default level if not set
@@ -45,7 +42,6 @@ async function main (params) {
       // return and log client errors
       return errorResponse(400, errorMessage, logger)
     }
-    const content = contentInit(params) 
 
     // log parameters, only if params.LOG_LEVEL === 'debug'
     if(params.LOG_LEVEL === 'debug'){
@@ -58,8 +54,10 @@ async function main (params) {
     debuggerOutput = function(message){
       if(params.LOG_LEVEL === 'debug'){
         if(typeof message === 'string'){
+          logger.debug(message)
           content.debug[actionName].push({"debugMessage":message})
         }else{
+          logger.debug(JSON.stringify(message, null, 2))
           content.debug[actionName].push(message)
         }
       }
@@ -89,28 +87,15 @@ async function main (params) {
      * 5. width and height < 8k
      * 
      * */
+    let assetReportEngine = new AssetReportEngine()
+    let assetReport = assetReportEngine.getNewAssetReport()
 
     // too many artboards?  #2
-    const numberOfArtBoardsInManifest = (manifest) => {
-      if (typeof manifest !== "object") {
-        console.error("manifest needs to be an object")
-        throw new Error("manifest needs to be an object")
-      }
-    
-      let artBoardCount = 0;
-      manifest.outputs.map((output) => {
-        output.layers.map((layer) => {
-          if (layer.type && layer.type == "layerSection") {
-            artBoardCount = artBoardCount + 1
-          }
-        });
-      });
-    
-      return artBoardCount
-    };
-    
+    assetReport.setArtboardCount(manifestClean)
+    assetReport.setReportValuesBasedOnManifest(manifestClean)
+    /*
     content.artboardCount = numberOfArtBoardsInManifest(manifestClean)
-    content.artboardCountOk = content.artboardCount > 2 ? false : true
+    content.artboardCountOk = content.artboardCount > 1 ? false : true
     content.status = content.artboardCountOk ? 'ok' : 'error'
     content.bitDepth = manifestClean.outputs[0].document.bitDepth
     // 5. width and height < 8k
@@ -123,13 +108,15 @@ async function main (params) {
     content.status = content.heightOk ? 'ok' : 'error'
     content.iccProfileName = manifestClean.outputs[0].document.iccProfileName
     content.imageMode = manifestClean.outputs[0].document.imageMode
+    */
 
     //if the call was done after events collected all the needed aem data we can skip hitting aem again
     // 1. get size < 500mb
     if(typeof params.jobSecodaryData !== 'undefined'){
-      content.size = params.jobSecodaryData.aemAssetSize
-      content.sizeOk = content.size > 520093696 ? false : true
-      content.status = content.sizeOk ? 'ok' : 'error'
+      //content.size = params.jobSecodaryData.aemAssetSize
+      //content.sizeOk = content.size > 520093696 ? false : true
+      //content.status = content.sizeOk ? 'ok' : 'error'
+      assetReport.setReportValuesBasedOnSecondaryJobData(params.jobSecodaryData)
     }
     else{
       // Change this to the path of the image you want to check
@@ -140,9 +127,7 @@ async function main (params) {
       if(typeof aemImageData !== 'undefined' && typeof aemImageData.body !== 'undefined'){
         debuggerOutput("aem file got image data")
         debuggerOutput(aemImageData)
-        content.size = aemImageData.body.aemImageData['jcr:content']['metadata']['dam:size']
-        content.sizeOk = content.size > 520093696 ? false : true
-        content.status = content.sizeOk ? 'ok' : 'error'
+        assetReport.setValuesBasedOnAemAssetDataCall(aemImageData)
       }else{
         debuggerOutput(aemImageData)
         debuggerOutput("failed to get aem file data")
@@ -151,10 +136,19 @@ async function main (params) {
     } 
 
     // Write the report to the asset
-    await writeJsonExpressCompatibiltyReportToComment(params.aemHost,params.aemAssetPath,content,params,logger)
+    await writeJsonExpressCompatibiltyReportToComment(params.aemHost,params.aemAssetPath,assetReport.getReportAsJson(),params,logger)
 
-    //TODO: write a metadata tag to the asset with the status of the audit
+    const metadataValue = assetReport.status === 'ok' ? true : false
+    await addMetadataToAemAsset(params.aemHost,params.aemAssetPath,"/express-friendly",metadataValue,params,logger)
     
+    debuggerOutput(assetReport.getReportAsJson())
+    content["asset_report"] = assetReport.getReportAsJson()
+
+    // Mark job complete
+    params.jobSecodaryData.processingComplete = true
+    const state = await State.init()
+    const jobData = await state.put(params.jobSecodaryData.psApiJobId,params.jobSecodaryData,{ ttl: 18000 })
+
     const response = {
       statusCode: 200,
       body: content

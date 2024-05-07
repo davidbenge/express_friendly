@@ -7,6 +7,7 @@ const { getBearerToken, stringParameters } = require('./utils')
 const { Core, State, Files } = require('@adobe/aio-sdk')
 const openwhisk = require("openwhisk")
 const fetch = require('node-fetch')
+const axios = require('axios')
 
 /**
  * Get Firefly services service account token
@@ -44,6 +45,8 @@ async function getFireflyServicesServiceAccountToken(params,logger){
     },
       body: formBody
     })
+
+    logger.debug(`getFireflyServicesServiceAccountToken made call to service ${fetchUrl} ${JSON.stringify(rec, null, 2)}`)
 
     if(rec.ok){
       let responseContent = await rec.json()
@@ -97,17 +100,18 @@ async function getPhotoshopManifestForPresignedUrl(targetAssetPresignedUrl,param
   logger.debug("in getPhotoshopManifestForPresignedUrl before getFireflyServicesAuth ")
   const fetchUrl = 'https://image.adobe.io/pie/psdService/documentManifest'
   const fireflyApiAuth = await getFireflyServicesAuth(params,logger)
-  const psApiManifestBody = {
+  const psApiManifestBody = JSON.stringify({
     "inputs": [
       {
         "href":`${targetAssetPresignedUrl}`,
         "storage":"external"
       }
     ]
-  }
+  })
 
   let callHeaders = {
     'Authorization': `Bearer ${fireflyApiAuth}`,
+    'Accept': 'application/json',
     'Content-Type': 'application/json',
     'x-api-key': `${params.FIREFLY_SERVICES_CLIENT_ID}`,
   }
@@ -115,21 +119,30 @@ async function getPhotoshopManifestForPresignedUrl(targetAssetPresignedUrl,param
     callHeaders['x-gw-ims-org-id'] = `${params.FIREFLY_SERVICES_ORG_ID}`
   }
 
-  logger.debug("in getPhotoshopManifest before fetch ")
-  logger.debug(JSON.stringify(callHeaders, null, 2))
-  const res = await fetch(fetchUrl, {
+  const config = {
     method: 'post',
+    maxBodyLength: Infinity,
+    url: fetchUrl,
     headers: callHeaders,
-    body: JSON.stringify(psApiManifestBody)
-  })
-
-  if (!res.ok) {
-    throw new Error('request to ' + fetchUrl + ' failed with status code ' + res.status)
-  }else{
-    logger.debug("in getPhotoshopManifestForPresignedUrl was successful ")
-    const resultData = await res.json()
-    return resultData
+    data : psApiManifestBody
   }
+
+  logger.debug("fireflyCscUtils:getPhotoshopManifest before fetch with this call config")
+  logger.debug(JSON.stringify(config, null, 2))
+
+  let response
+  try {
+    response = await axios.request(config)
+    const resultData = response.data
+
+    logger.debug(`in getPhotoshopManifestForPresignedUrl was successful ${JSON.stringify(resultData, null, 2)}`)
+    return resultData
+
+  } catch (error) {
+    logger.error('request to ' + fetchUrl + ' failed with status code ')
+    throw new Error('request to ' + fetchUrl + ' failed with status code ' + JSON.stringify(error, null, 2))
+  }
+
 }
 
 module.exports = {

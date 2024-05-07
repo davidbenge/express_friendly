@@ -8,6 +8,7 @@ const { Core, State, Files } = require('@adobe/aio-sdk')
 const openwhisk = require("openwhisk")
 const fetch = require('node-fetch')
 const FormData = require('form-data')
+const axios = require('axios')
 
 /***
  * Get aem service account token
@@ -137,25 +138,39 @@ async function getAemAssetDataRapi(aemHost,aemAssetPath,params,logger){
  */
 async function getAemAssetPresignedDownloadUrl(aemHost,aemAssetPath,params,logger){
   // get repo data
-  const assetRepoData = await getAemAssetDataRapi(aemHost,aemAssetPath,params,logger)
+  let assetRepoData
+  try {
+    logger.debug(`getAemAssetPresignedDownloadUrl:getAemAssetDataRapi ${aemHost}${aemAssetPath}`)
+    assetRepoData = await getAemAssetDataRapi(aemHost,aemAssetPath,params,logger) 
+  } catch (error) {
+    logger.error(`getAemAssetPresignedDownloadUrl:getAemAssetDataRapi request to ${aemHost}${aemAssetPath} failed with error ${error.message}`)
+    throw new Error(`getAemAssetPresignedDownloadUrl:getAemAssetDataRapi request to ${aemHost}${aemAssetPath} failed with error ${error.message}`)
+  }
 
   //get download link  TODO
   const fetchUrl = assetRepoData['_links']['http://ns.adobe.com/adobecloud/rel/download'].href
   const aemAuthToken = await getAemAuth(params,logger)
 
-  const res = await fetch(fetchUrl, {
-    method: 'get',
-    headers: {
-      'Authorization': 'Bearer ' + aemAuthToken,
-      'Content-Type': 'application/json',
-      'x-api-key': params.AEM_SERVICE_TECH_ACCOUNT_CLIENT_ID
+  try {
+    const res = await fetch(fetchUrl, {
+      method: 'get',
+      headers: {
+        'Authorization': 'Bearer ' + aemAuthToken,
+        'Content-Type': 'application/json',
+        'x-api-key': params.AEM_SERVICE_TECH_ACCOUNT_CLIENT_ID
+      }
+    })
+
+    if (!res.ok) {
+      throw new Error('getAemAssetPresignedDownloadUrl:getAemAssetDataRapi request to ' + fetchUrl + ' failed with status code ' + res.status)
+    }else{
+      const jsonResponse = await res.json()
+      logger.debug(`getAemAssetPresignedDownloadUrl:getAemAssetDataRapi ${JSON.stringify(jsonResponse, null, 2)}`)
+      return jsonResponse.href
     }
-  })
-  
-  if (!res.ok) {
-    throw new Error('getAemAssetPresignedDownloadUrl request to ' + fetchUrl + ' failed with status code ' + res.status)
-  }else{
-    return await res.json().href
+  } catch (error) {
+    logger.error(`getAemAssetPresignedDownloadUrl:fetch presigned request to ${aemHost}${aemAssetPath} failed with error ${error.message}`)
+    throw new Error(`getAemAssetPresignedDownloadUrl:fetch presigned request to ${aemHost}${aemAssetPath} failed with error ${error.message}`)
   }
 }
 
@@ -273,7 +288,8 @@ async function writeJsonExpressCompatibiltyReportToComment(aemHost,aemAssetPath,
  * 
  * @param {string} aemHost aem host
  * @param {string} aemAssetPath aem asset path
- * @param {object} tag 
+ * @param {object} tagPath tag path
+ * @param {object} tagValue tag value
  * @param {object} params action input parameters.
  * @param {object} logger logger object
  * 
@@ -281,39 +297,52 @@ async function writeJsonExpressCompatibiltyReportToComment(aemHost,aemAssetPath,
  * 
  * TODO: finsh
  */
-async function aemAssetAddMetadata(aemHost,aemAssetPath,tag,params,logger){
-  aemAssetPath = aemAssetPath.replace("/content/dam","/api/assets")
-  if(aemAssetPath.indexOf("/api/assets") < 0){
-    aemAssetPath = "/api/assets" + aemAssetPath
+async function addMetadataToAemAsset(aemHost,aemAssetPath,tagPath,tagValue,params,logger){
+  let data = JSON.stringify([
+    {
+      "op": "add",
+      "path": tagPath,
+      "value": tagValue
+    }
+  ])
+
+  if(aemAssetPath.indexOf("/content/dam") < 0){
+    aemAssetPath = "/content/dam" + aemAssetPath
   }
-  aemAssetPath = aemAssetPath + "/comments/*"
 
-  logger.debug("writeCommentToAsset aemAssetPath path is : " + aemAssetPath +  " we are starting the form build")
-  const form = new FormData()
-  form.append('message', comment)
-
-  //if(typeof annotations != null && typeof annotations === 'object' && Object.keys(annotations).length > 0){
-  //  form.append('annotationData', annotations)
-  //}
-
-  const fetchUrl = aemHost + aemAssetPath
-  logger.debug("writeCommentToAsset fetchUrl: " + fetchUrl)
+  logger.debug(`aemCscUtils:aemAssetAddMetadata call path prepped for  ${aemAssetPath}`)
 
   const aemAuthToken = await getAemAuth(params,logger)
 
-  const res = await fetch(fetchUrl, {
-    method: 'POST',
-    headers: {
-      'Authorization': 'Bearer ' + aemAuthToken
+  logger.debug(`aemCscUtils:aemAssetAddMetadata got auth`)
+  let config = {
+    method: 'patch',
+    maxBodyLength: Infinity,
+    url: `${aemHost}/adobe/repository${aemAssetPath};resource=applicationmetadata`,
+    headers: { 
+      'X-Api-Key': params.AEM_SERVICE_TECH_ACCOUNT_CLIENT_ID, 
+      'Content-Type': 'application/json-patch+json', 
+      'Authorization': `Bearer ${aemAuthToken}`
     },
-    body:form
-  })
-  logger.debug("writeCommentToAsset res: " + JSON.stringify(res)) 
-  
-  if (!res.ok) {
-    throw new Error('request to ' + fetchUrl + ' writeCommentToAsset failed with status code ' + res.status)
-  }else{
-    return await res.json()
+    data : data
+  };
+
+  logger.debug(`aemCscUtils:aemAssetAddMetadata call config prepped ${JSON.stringify(config, null, 2) }`) 
+
+  let response
+  try {
+    response = await axios.request(config)
+
+    logger.debug(`aemCscUtils:aemAssetAddMetadata response: ${JSON.stringify(response, null, 2)}`)
+
+    if (response.statusText !== 'OK') {
+      throw new Error(`aemCscUtils:aemAssetAddMetadata request to ${config.url} failed with status code ${response.status} ${response.statusText}`)
+    }else{
+      return {"message":"success"}
+    }
+  } catch (error) {
+    logger.error(`aemCscUtils:aemAssetAddMetadata request to ${config.url} failed ${JSON.stringify(response, null, 2)}`)
+    throw new Error('aemCscUtils:aemAssetAddMetadata request to ' + config.url + ' failed ' + JSON.stringify(error, null, 2))
   }
 }
 
@@ -338,5 +367,5 @@ module.exports = {
   writeJsonExpressCompatibiltyReportToComment,
   getAemAssetDataRapi,
   getAemAssetPresignedDownloadUrl,
-  aemAssetAddMetadata
+  addMetadataToAemAsset
 }

@@ -33,7 +33,14 @@ async function main (params) {
      }
 
     // get presigned url
-    const manifestResults = await getPhotoshopManifestForPresignedUrl(params.presignedUrl,params,logger)
+    let manifestResults
+    try {
+      manifestResults = await getPhotoshopManifestForPresignedUrl(params.presignedUrl,params,logger) 
+    } catch (error) {
+      logger.error(JSON.stringify(error, null, 2))
+      logger.error(`getPhotoshopManifestForPresignedUrl error ${error.message}`)
+      return errorResponse(500, error.message, logger)
+    }
 
     outputContent.manifestRequest = manifestResults
 
