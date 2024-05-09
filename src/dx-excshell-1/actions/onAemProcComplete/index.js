@@ -64,7 +64,7 @@ async function main (params) {
     }
 
     // log parameters, only if params.LOG_LEVEL === 'debug' dumps all the input params so i can see all the stuff I am passing in from the event and config bindinds
-    debuggerOutput(JSON.stringify(params, null, 2))
+    //debuggerOutput(JSON.stringify(params, null, 2))
 
     // check for missing request input parameters and headers
     // this call can be called via a open web api OR you can map it in IO without it being exposed to the web
@@ -80,15 +80,6 @@ async function main (params) {
     if(typeof params.data.repositoryMetadata !== 'undefined' && params.data.repositoryMetadata['dc:format'] === 'image/vnd.adobe.photoshop'){
       // kick off request to get the psd manifest for an aem asset
       const aemImageMetadata = params.data.repositoryMetadata
-      /* this was here to check the size of the image but we want a total report so we are going to skip this check
-      if(aemImageMetadata['repo:size'] > 520093696){
-        logger.info('Image size is greater than 500MB, skipping processing')
-        return {
-          statusCode: 204,
-          body: "asset too large for express"
-        }
-      }
-      */
 
       // get the aem asset path and repo id for next steps
       const aemAssetPath = aemImageMetadata['repo:path']
@@ -121,7 +112,7 @@ async function main (params) {
       let submitManifestRequestCallResults
       try {
         debuggerOutput(`onAemProcComplete:getPhotoshopManifestForPresignedUrl ${assetPresignedUrl}`)
-        debuggerOutput(JSON.stringify(params, null, 2))
+        //debuggerOutput(JSON.stringify(params, null, 2))
         params.throwIoEvent = true //throw an IO event for the manifest job completion
         submitManifestRequestCallResults = await getPhotoshopManifestForPresignedUrl(assetPresignedUrl,params,logger)
 
@@ -156,9 +147,11 @@ async function main (params) {
           aemAssetPath: aemAssetPath,
           aemAssetPresignedDownloadPath: assetPresignedUrl,
           aemAssetSize: aemImageMetadata['repo:size'],
+          aemAssetUuid: aemImageMetadata['repo:assetId'],
+          aemAssetName: aemImageMetadata['repo:name'],
           aemAssetMetaData: aemImageMetadata,
           processPassCount:0,
-          processingComplete:true,
+          processingComplete:false,
           psApiJobId:psApiJobId
         }
         const stateJob = await State.init()

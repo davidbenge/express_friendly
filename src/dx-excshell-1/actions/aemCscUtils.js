@@ -58,8 +58,8 @@ async function getAemServiceAccountToken(params,logger){
         logger.error("Failed to get AEM auth token")
       }
   }else{
-    logger.debug("getAemServiceAccountToken found a good state key")
-    logger.debug("getAemServiceAccountToken state key value: " + stateAuth.value)
+    logger.debug("getAemServiceAccountToken found a GOOD state key")
+    //logger.debug("getAemServiceAccountToken state key value: " + stateAuth.value)
     aemAuthToken = stateAuth.value
   }
 
@@ -298,7 +298,7 @@ async function writeJsonExpressCompatibiltyReportToComment(aemHost,aemAssetPath,
  * TODO: finsh
  */
 async function addMetadataToAemAsset(aemHost,aemAssetPath,tagPath,tagValue,params,logger){
-  let data = JSON.stringify([
+  const callData = JSON.stringify([
     {
       "op": "add",
       "path": tagPath,
@@ -314,17 +314,16 @@ async function addMetadataToAemAsset(aemHost,aemAssetPath,tagPath,tagValue,param
 
   const aemAuthToken = await getAemAuth(params,logger)
 
-  logger.debug(`aemCscUtils:aemAssetAddMetadata got auth`)
+  logger.debug(`aemCscUtils:aemAssetAddMetadata got auth ${JSON.stringify(aemAuthToken, null, 2)}`)
   let config = {
     method: 'patch',
-    maxBodyLength: Infinity,
     url: `${aemHost}/adobe/repository${aemAssetPath};resource=applicationmetadata`,
     headers: { 
       'X-Api-Key': params.AEM_SERVICE_TECH_ACCOUNT_CLIENT_ID, 
       'Content-Type': 'application/json-patch+json', 
       'Authorization': `Bearer ${aemAuthToken}`
     },
-    data : data
+    data : callData
   };
 
   logger.debug(`aemCscUtils:aemAssetAddMetadata call config prepped ${JSON.stringify(config, null, 2) }`) 
@@ -332,8 +331,7 @@ async function addMetadataToAemAsset(aemHost,aemAssetPath,tagPath,tagValue,param
   let response
   try {
     response = await axios.request(config)
-
-    logger.debug(`aemCscUtils:aemAssetAddMetadata response: ${JSON.stringify(response, null, 2)}`)
+    logger.debug(`aemCscUtils:aemAssetAddMetadata response: ${JSON.stringify(response.data, null, 2)}`)
 
     if (response.statusText !== 'OK') {
       throw new Error(`aemCscUtils:aemAssetAddMetadata request to ${config.url} failed with status code ${response.status} ${response.statusText}`)
@@ -341,8 +339,17 @@ async function addMetadataToAemAsset(aemHost,aemAssetPath,tagPath,tagValue,param
       return {"message":"success"}
     }
   } catch (error) {
-    logger.error(`aemCscUtils:aemAssetAddMetadata request to ${config.url} failed ${JSON.stringify(response, null, 2)}`)
-    throw new Error('aemCscUtils:aemAssetAddMetadata request to ' + config.url + ' failed ' + JSON.stringify(error, null, 2))
+    logger.error(`aemCscUtils:aemAssetAddMetadata request to ${config.url} failed ${JSON.stringify(error, null, 2)}`)
+    if (error.response) {
+      logger.error(`aemCscUtils:aemAssetAddMetadata error.response.data ${error.response.data}`)
+      logger.error(`aemCscUtils:aemAssetAddMetadata error.response.status ${error.response.status}`)
+      logger.error(`aemCscUtils:aemAssetAddMetadata error.response.headers ${error.response.headers}`)
+    } else if (error.request) {
+      logger.error(`aemCscUtils:aemAssetAddMetadata error.request ${error.request}`)
+    } else {
+      logger.error(`aemCscUtils:aemAssetAddMetadata request to ${config.url} failed ${error.message}`)
+    }
+    throw new Error(`aemCscUtils:aemAssetAddMetadata request to ${config.url} failed ${error.response}`)
   }
 }
 

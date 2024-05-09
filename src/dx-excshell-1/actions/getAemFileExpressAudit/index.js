@@ -25,14 +25,14 @@ async function main (params) {
   // create a Logger
   const logger = Core.Logger('main', { level: params.LOG_LEVEL || 'info' })
   const content = contentInit(params) 
-  logger.debug(stringParameters(params))
+  //logger.debug(JSON.stringify(params, null, 2))
 
   const actionName = 'expressAudit'
   let debuggerOutput = null
   
   try {
     // 'info' is the default level if not set
-    logger.info('Calling the main check manifest function')
+    logger.info(`Calling the main ${actionName} manifest function`)
 
     // check for missing request input parameters and headers
     const requiredParams = ['manifest','aemHost','aemAssetPath']
@@ -74,62 +74,42 @@ async function main (params) {
       manifestClean = params.manifest
     }
     
-    //output params to output structure
-    //debuggerOutput(params)
-
     /**** 
-     * Checks logic 
+     * Checks logic - via Ryan Mulvaney 5-24
      * 
-     * 1. get size < 500mb
-     * 2. Art board count
-     * 3. Smart object with non rasterized layers
-     * 4. Text layers with style
-     * 5. width and height < 8k
+     * 1. Filesize is greater than 500 MB +
+     * 2. image size is greater than 8k by 8k +
+     * 3. Color space equals sRGB (can't be CMKY)
+     * 4. File has more than one artboard +
+     * 5. File has Less than 10 photoshop layers (this one I'm kind of making up.  There's no real guidance here so maybe skip but anything with more than 10 layers just seems like a lot to handle in Express for a non creative)
+     * 6. A layer contains a Smart Object
+     * 7. A Text layer has a layer style applied
+     * 8. A non Adobe Font is used (There is not an existing list of all Adobe Fonts so I'm not sure how this would flag in the manifest but the photoshop file does flag if a font is missing when opened.  I should show you an example with one of the Pfizer files if needed) (edited) 
      * 
      * */
     let assetReportEngine = new AssetReportEngine()
     let assetReport = assetReportEngine.getNewAssetReport()
+    debuggerOutput(`${actionName} got new action report object`)
 
     // too many artboards?  #2
     assetReport.setArtboardCount(manifestClean)
     assetReport.setReportValuesBasedOnManifest(manifestClean)
-    /*
-    content.artboardCount = numberOfArtBoardsInManifest(manifestClean)
-    content.artboardCountOk = content.artboardCount > 1 ? false : true
-    content.status = content.artboardCountOk ? 'ok' : 'error'
-    content.bitDepth = manifestClean.outputs[0].document.bitDepth
-    // 5. width and height < 8k
-    content.width = manifestClean.outputs[0].document.width
-    content.widthOk = content.width > 8000 ? false : true
-    content.status = content.widthOk ? 'ok' : 'error'
-    // 5. width and height < 8k
-    content.height = manifestClean.outputs[0].document.height
-    content.heightOk = content.height > 8000 ? false : true
-    content.status = content.heightOk ? 'ok' : 'error'
-    content.iccProfileName = manifestClean.outputs[0].document.iccProfileName
-    content.imageMode = manifestClean.outputs[0].document.imageMode
-    */
 
-    //if the call was done after events collected all the needed aem data we can skip hitting aem again
-    // 1. get size < 500mb
     if(typeof params.jobSecodaryData !== 'undefined'){
-      //content.size = params.jobSecodaryData.aemAssetSize
-      //content.sizeOk = content.size > 520093696 ? false : true
-      //content.status = content.sizeOk ? 'ok' : 'error'
       assetReport.setReportValuesBasedOnSecondaryJobData(params.jobSecodaryData)
     }
     else{
       // Change this to the path of the image you want to check
       const aemImageData = await getAemAssetData(params.aemHost,params.aemAssetPath,params,logger)
       debuggerOutput('aemImageData')
-      debuggerOutput(aemImageData)
+      //debuggerOutput(aemImageData)
 
       if(typeof aemImageData !== 'undefined' && typeof aemImageData.body !== 'undefined'){
         debuggerOutput("aem file got image data")
-        debuggerOutput(aemImageData)
+        //debuggerOutput(aemImageData)
         assetReport.setValuesBasedOnAemAssetDataCall(aemImageData)
       }else{
-        debuggerOutput(aemImageData)
+        //debuggerOutput(aemImageData)
         debuggerOutput("failed to get aem file data")
         logger.error("Failed to get aem file data")
       }
@@ -137,23 +117,38 @@ async function main (params) {
 
     // Write the report to the asset
     await writeJsonExpressCompatibiltyReportToComment(params.aemHost,params.aemAssetPath,assetReport.getReportAsJson(),params,logger)
+    debuggerOutput("getAemFileExpressAudit done with writeJsonExpressCompatibiltyReportToComment")
 
-    const metadataValue = assetReport.status === 'ok' ? true : false
+    const metadataValue = assetReport.status === 'ok' ? 'should work' : 'will require work'
     await addMetadataToAemAsset(params.aemHost,params.aemAssetPath,"/express-friendly",metadataValue,params,logger)
+    debuggerOutput("getAemFileExpressAudit done with addMetadataToAemAsset")
     
     debuggerOutput(assetReport.getReportAsJson())
     content["asset_report"] = assetReport.getReportAsJson()
+    debuggerOutput("getAemFileExpressAudit done with asset_report response object")
 
     // Mark job complete
     params.jobSecodaryData.processingComplete = true
     const state = await State.init()
     const jobData = await state.put(params.jobSecodaryData.psApiJobId,params.jobSecodaryData,{ ttl: 18000 })
+    debuggerOutput("getAemFileExpressAudit finished the state update")
 
     const response = {
       statusCode: 200,
       body: content
     }
 
+    /****
+     * do we need to save a report?
+     */
+    let reportResult
+    if(params.GENERATE_AUDIT_REPORT_LOG === 'true' || params.GENERATE_AUDIT_REPORT_LOG === true){
+      reportResult = await assetReportEngine.saveCurrentAssetReport()
+      //debuggerOutput(`getAemFileExpressAudit finished the report save ${JSON.stringify(reportResult, null, 2)}`)
+      debuggerOutput(`getAemFileExpressAudit finished the report save`)
+    }
+
+    debuggerOutput("getAemFileExpressAudit ************************* DONE *************************")
     return response
   } catch (error) {
     // log any server errors

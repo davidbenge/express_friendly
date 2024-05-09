@@ -64,7 +64,8 @@ async function getFireflyServicesServiceAccountToken(params,logger){
       throw new Error('request to ' + fetchUrl + ' failed with status code ' + rec.status)
     }
   }else{
-    logger.debug(`getFireflyServicesServiceAccountToken got existing token from state ${JSON.stringify(stateAuth.value)}` )
+    //logger.debug(`getFireflyServicesServiceAccountToken got existing token from state ${JSON.stringify(stateAuth.value)}` )
+    logger.debug(`getFireflyServicesServiceAccountToken GOOD existing token from state` )
     return stateAuth.value
   }
 }
@@ -74,7 +75,7 @@ async function getFireflyServicesServiceAccountToken(params,logger){
  */
 async function getFireflyServicesAuth(params,logger){
   logger.debug("getFireflyServicesAuth")
-  logger.debug(stringParameters(params))
+  //logger.debug(stringParameters(params))
   if(params.FIREFLY_SERVICES_USE_PASSED_AUTH === 'true'){
     logger.debug("getFireflyServicesAuth Bearer Token")
     return getBearerToken(params)
@@ -100,14 +101,14 @@ async function getPhotoshopManifestForPresignedUrl(targetAssetPresignedUrl,param
   logger.debug("in getPhotoshopManifestForPresignedUrl before getFireflyServicesAuth ")
   const fetchUrl = 'https://image.adobe.io/pie/psdService/documentManifest'
   const fireflyApiAuth = await getFireflyServicesAuth(params,logger)
-  const psApiManifestBody = JSON.stringify({
+  const psApiManifestBody = {
     "inputs": [
       {
         "href":`${targetAssetPresignedUrl}`,
         "storage":"external"
       }
     ]
-  })
+  }
 
   let callHeaders = {
     'Authorization': `Bearer ${fireflyApiAuth}`,
@@ -120,8 +121,7 @@ async function getPhotoshopManifestForPresignedUrl(targetAssetPresignedUrl,param
   }
 
   const config = {
-    method: 'post',
-    maxBodyLength: Infinity,
+    method: 'POST',
     url: fetchUrl,
     headers: callHeaders,
     data : psApiManifestBody
@@ -133,14 +133,22 @@ async function getPhotoshopManifestForPresignedUrl(targetAssetPresignedUrl,param
   let response
   try {
     response = await axios.request(config)
-    const resultData = response.data
 
-    logger.debug(`in getPhotoshopManifestForPresignedUrl was successful ${JSON.stringify(resultData, null, 2)}`)
-    return resultData
+    logger.debug(`in getPhotoshopManifestForPresignedUrl was successful ${JSON.stringify(response.data, null, 2)}`)
+    return response.data
 
   } catch (error) {
-    logger.error('request to ' + fetchUrl + ' failed with status code ')
-    throw new Error('request to ' + fetchUrl + ' failed with status code ' + JSON.stringify(error, null, 2))
+    logger.error(`request to ${fetchUrl} failed ${JSON.stringify(error, null, 2)}`)
+    if (error.response) {
+      logger.error(`error.response.data ${error.response.data}`)
+      logger.error(`error.response.status ${error.response.status}`)
+      logger.error(`error.response.headers ${error.response.headers}`)
+    } else if (error.request) {
+      logger.error(`error.request ${error.request}`)
+    } else {
+      logger.error(`request to ${fetchUrl} failed ${error.message}`)
+    }
+    throw new Error(`request to ${fetchUrl} failed ${error.response}`)
   }
 
 }

@@ -1,3 +1,19 @@
+/**** 
+ * assetReport
+ * 
+ * Checks logic - via Ryan Mulvaney 5-24
+ * 
+ * 1. Filesize is greater than 500 MB +
+ * 2. image size is greater than 8k by 8k +
+ * 3. Color space equals sRGB (can't be CMKY)
+ * 4. File has more than one artboard +
+ * 5. File has Less than 10 photoshop layers (this one I'm kind of making up.  There's no real guidance here so maybe skip but anything with more than 10 layers just seems like a lot to handle in Express for a non creative)
+ * 6. A layer contains a Smart Object
+ * 7. A Text layer has a layer style applied
+ * 8. A non Adobe Font is used (There is not an existing list of all Adobe Fonts so I'm not sure how this would flag in the manifest but the photoshop file does flag if a font is missing when opened.  I should show you an example with one of the Pfizer files if needed) (edited) 
+ * 
+ * */
+
 const { Core, Files } = require('@adobe/aio-sdk')
 
 const AssetReportEngine = class {
@@ -15,16 +31,65 @@ const AssetReportEngine = class {
         return this.fileLib
     }
 
+    async getAssetReportData(filename) {
+        let fileLib = await this.getFileLib()
+        const stateListResult = await fileLib.list(`${this.storagePath}`)
+
+        //now lets setup the results counter object
+        let assetReport = {
+            total_count: 0,
+            size_was_issue: 0,
+            width_was_issue: 0,
+            height_was_issue: 0,  
+            artboardCount_was_issue: 0,
+            report_debug: []
+        }
+
+        for(let i = 0; i < stateListResult.length; i++){
+            let reportBuffer = await fileLib.read(stateListResult[i].name)
+
+            let currentReport = JSON.parse(reportBuffer.toString())
+            //assetReport.report_debug.push(currentReport)
+
+            assetReport.total_count++
+            if(currentReport.sizeOk === false){
+                assetReport.size_was_issue++
+            }
+            if(currentReport.widthOk === false){
+                assetReport.width_was_issue++
+            }
+            if(currentReport.heightOk === false){
+                assetReport.height_was_issue++
+            }
+            if(currentReport.artboardCountOk === false){
+                assetReport.artboardCount_was_issue++
+            }
+        }
+
+        return assetReport
+    }
+
+    /***
+     * clean the asset report data files
+     * 
+     * @returns {boolean} true if the files were deleted
+     */
     async cleanAssetReportData() {
-        const fileLib = await this.getFileLib()
-        await Files.delete(this.storagePath);
+        let fileLib = await this.getFileLib()
+        await fileLib.delete(this.storagePath);
+
+        return true
     }
 
     /*****
      * get the asset report object for use with the engine
+     * 
+     * @param {string} filename the filename of the asset report to create
      */
-    getNewAssetReport() {
-        const filename = `${Date.now()}-${Math.floor(Math.random() * 1000)}-asset-report.json` //randomize the filename
+    getNewAssetReport(filename) {
+        if(typeof filename === 'undefined'){
+            filename = `${Date.now()}-${Math.floor(Math.random() * 1000)}-asset-report.json` //randomize the filename
+        }
         this.currentAssetReport = new AssetReport(filename)
         return this.currentAssetReport
     }
@@ -33,32 +98,47 @@ const AssetReportEngine = class {
      * save the asset report to the storage
      * 
      * @param {AssetReport} report asset report object
+     * 
+     * @returns {string} stateResult The results object from the aio FILE opperation
      */
     async saveAssetReport(report) {
-        const fileLib = await this.getFileLib()
-        await fileLib.write(`${this.storagePath}${report.filename}`, report);
+        let fileLib = await this.getFileLib()
+        this.logger.debug(`saving asset report ${report.filename} to ${this.storagePath}`)
+        const stateResult = await fileLib.write(`${this.storagePath}${report.filename}`, JSON.stringify(report.getReportAsJson()));
+
+        return stateResult
     }
 
     /*****
      * If you create a new asset report object, you can save it with this function
+     * 
+     * @returns {object} stateResult The results object from the aio FILE opperation
      */
     async saveCurrentAssetReport() {
-        await this.saveAssetReport(this.currentAssetReport)
+        const stateResult =  await this.saveAssetReport(this.currentAssetReport)
+
+        return stateResult
     }
 }
-
+/*****
+ * AssetReport
+ * 
+ * This class is used to create an asset report object that can be used to store and report on the asset data
+ * 
+ */
 const AssetReport = class{
-    constructor(filename){
-      this._filename = filename
+    constructor(pFilename){
+      this._filename = pFilename
       this._artboardCount = 0
       this._bitDepth = 'na'
       this._size = 0
-      // 5. width and height < 8k
       this._width = 0
-      // 5. width and height < 8k
       this._height = 0
       this._iccProfileName = 0
       this._imageMode = 'na'
+      this._aemFileName =''
+      this._aemFilePath = ''
+      this._aemFileUuid = ''
     }
 
     /****** getters/setters  ******/
@@ -134,7 +214,40 @@ const AssetReport = class{
     get imageMode(){
         return this._imageMode
     }
-    
+
+    get filename(){
+        return this._filename
+    }   
+
+    set filename(value){
+        this._filename = value
+    }
+
+    get aemFilePath(){
+        return this._aemFilePath
+    }
+
+    set aemFilePath(value){
+        this._aemFilePath = value
+    }   
+
+    get aemFileName(){  
+        return this._aemFileName
+    }   
+
+    set aemFileName(value){ 
+        this._aemFileName = value
+    }   
+
+    set aemFileUuid(value){    
+        this._aemFileUuid = value
+    }
+
+    get aemFileUuid(){ 
+        return this._aemFileUuid
+    }
+
+
     /******** QA Rules ********/
     /****
      * set the artboard count
@@ -142,7 +255,7 @@ const AssetReport = class{
      * @param {object} manifest json manifest object from photoshop api
      */
     setArtboardCount(manifest){
-        this.artboardCount = this.numberOfArtBoardsInManifest(manifest)
+        this._artboardCountartboardCount = this.numberOfArtBoardsInManifest(manifest)
     }
 
     /****
@@ -174,6 +287,9 @@ const AssetReport = class{
      */
     setReportValuesBasedOnSecondaryJobData(jobSecodaryData){
       this.size = jobSecodaryData.aemAssetSize
+      this.aemFileName = jobSecodaryData.aemAssetName
+      this.aemFilePath = jobSecodaryData.aemAssetPath
+      this.aemFileUuid = jobSecodaryData.aemAssetUuid
     }
 
     /*****
@@ -201,17 +317,21 @@ const AssetReport = class{
 
     getReportAsJson(){
         const report = {
-            //"artboardCount": this.artboardCount,
-            //"artboardCountOk": this.artboardCountOk,
-            //"size": this.size,
-            //"sizeOk": this.sizeOk,
-            //"bitDepth": this.bitDepth,
-            //"width": this.width,
-            //"widthOk": this.widthOk,
-            //"height": this.height,
-            //"heightOk": this.heightOk,
-            //"iccProfileName": this.iccProfileName,
-            //"imageMode": this.imageMode,
+            "artboardCount": this.artboardCount,
+            "filename": this.filename,
+            "aemFileName": this.aemFileName,
+            "aemFilePath": this.aemFilePath,
+            "aemFileUuid": this.aemFileUuid,    
+            "artboardCountOk": this.artboardCountOk,
+            "size": this.size,
+            "sizeOk": this.sizeOk,
+            "bitDepth": this.bitDepth,
+            "width": this.width,
+            "widthOk": this.widthOk,
+            "height": this.height,
+            "heightOk": this.heightOk,
+            "iccProfileName": this.iccProfileName,
+            "imageMode": this.imageMode,
             "status": this.status
         }
         return report

@@ -20,7 +20,7 @@ async function main (params) {
     logger.info('Calling the main action get-presigned-url')
 
     // log parameters, only if params.LOG_LEVEL === 'debug'
-    logger.debug(stringParameters(params))
+    //logger.debug(stringParameters(params))
 
     let outputContent = {}
      // check for missing request input parameters and headers
