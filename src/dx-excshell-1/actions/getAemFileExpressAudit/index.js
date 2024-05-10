@@ -63,7 +63,6 @@ async function main (params) {
       }
     }
 
-    content.artboardCount = 0
     debuggerOutput('manifest clean')
     let manifestClean
     if(typeof params.manifest !== "object") {
@@ -92,7 +91,7 @@ async function main (params) {
     debuggerOutput(`${actionName} got new action report object`)
 
     // too many artboards?  #2
-    assetReport.setArtboardCount(manifestClean)
+    //assetReport.setArtboardCount(manifestClean)
     assetReport.setReportValuesBasedOnManifest(manifestClean)
 
     if(typeof params.jobSecodaryData !== 'undefined'){

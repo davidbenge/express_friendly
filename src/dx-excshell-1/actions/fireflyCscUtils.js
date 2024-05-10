@@ -153,8 +153,15 @@ async function getPhotoshopManifestForPresignedUrl(targetAssetPresignedUrl,param
 
 }
 
+function sleepCscRequest(ms){
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
 module.exports = {
   getFireflyServicesAuth,
   getPhotoshopManifestForPresignedUrl,
-  getFireflyServicesServiceAccountToken
+  getFireflyServicesServiceAccountToken,
+  sleepCscRequest
 }

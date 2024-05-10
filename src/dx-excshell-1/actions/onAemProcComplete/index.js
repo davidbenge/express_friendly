@@ -14,7 +14,7 @@ const fetch = require('node-fetch')
 const { Core, State } = require('@adobe/aio-sdk')
 const { errorResponse, getBearerToken, stringParameters, checkMissingRequestInputs } = require('../utils')
 const { getAemAssetPresignedDownloadUrl } = require('../aemCscUtils')
-const { getPhotoshopManifestForPresignedUrl } = require('../fireflyCscUtils')
+const { getPhotoshopManifestForPresignedUrl, sleepCscRequest } = require('../fireflyCscUtils')
 
 // main function that will be executed by Adobe I/O Runtime
 async function main (params) {
@@ -114,6 +114,7 @@ async function main (params) {
         debuggerOutput(`onAemProcComplete:getPhotoshopManifestForPresignedUrl ${assetPresignedUrl}`)
         //debuggerOutput(JSON.stringify(params, null, 2))
         params.throwIoEvent = true //throw an IO event for the manifest job completion
+        await sleepCscRequest(5000) //sleep for 5 seconds to allow the presigned url to be active
         submitManifestRequestCallResults = await getPhotoshopManifestForPresignedUrl(assetPresignedUrl,params,logger)
 
         if(submitManifestRequestCallResults === undefined || submitManifestRequestCallResults === null){

@@ -5,9 +5,9 @@
  * 
  * 1. Filesize is greater than 500 MB +
  * 2. image size is greater than 8k by 8k +
- * 3. Color space equals sRGB (can't be CMKY)
+ * 3. Color space equals sRGB (can't be CMKY) +
  * 4. File has more than one artboard +
- * 5. File has Less than 10 photoshop layers (this one I'm kind of making up.  There's no real guidance here so maybe skip but anything with more than 10 layers just seems like a lot to handle in Express for a non creative)
+ * 5. File has Less than 10 photoshop layers (this one I'm kind of making up.  There's no real guidance here so maybe skip but anything with more than 10 layers just seems like a lot to handle in Express for a non creative) +
  * 6. A layer contains a Smart Object
  * 7. A Text layer has a layer style applied
  * 8. A non Adobe Font is used (There is not an existing list of all Adobe Fonts so I'm not sure how this would flag in the manifest but the photoshop file does flag if a font is missing when opened.  I should show you an example with one of the Pfizer files if needed) (edited) 
@@ -19,7 +19,7 @@ const { Core, Files } = require('@adobe/aio-sdk')
 const AssetReportEngine = class {
     constructor(storagePath,logger) {
         this.storagePath = storagePath || 'asset-report/'
-        this.logger = logger || Core.Logger('AssetReportEngine', { level: 'info' })
+        this.logger = logger || Core.Logger('AssetReportEngine', { level: 'debug' })
         this.fileLibInit = false
     }
 
@@ -31,7 +31,7 @@ const AssetReportEngine = class {
         return this.fileLib
     }
 
-    async getAssetReportData(filename) {
+    async getAssetReportData() {
         let fileLib = await this.getFileLib()
         const stateListResult = await fileLib.list(`${this.storagePath}`)
 
@@ -42,7 +42,8 @@ const AssetReportEngine = class {
             width_was_issue: 0,
             height_was_issue: 0,  
             artboardCount_was_issue: 0,
-            report_debug: []
+            layerCount_could_be_issue: 0,
+            colorSpace_was_issue: 0
         }
 
         for(let i = 0; i < stateListResult.length; i++){
@@ -52,23 +53,51 @@ const AssetReportEngine = class {
             //assetReport.report_debug.push(currentReport)
 
             assetReport.total_count++
-            if(currentReport.sizeOk === false){
+            if(currentReport.sizeOk === false || currentReport.sizeOk === 'false'){
                 assetReport.size_was_issue++
             }
-            if(currentReport.widthOk === false){
+            if(currentReport.widthOk === false || currentReport.widthOk === 'false'){
                 assetReport.width_was_issue++
             }
-            if(currentReport.heightOk === false){
+            if(currentReport.heightOk === false || currentReport.heightOk === 'false'){
                 assetReport.height_was_issue++
             }
-            if(currentReport.artboardCountOk === false){
+            if(currentReport.artboardCountOk === false || currentReport.artboardCountOk === 'false'){
                 assetReport.artboardCount_was_issue++
+            }
+
+            if(currentReport.layerCountOk === false || currentReport.layerCountOk === 'false'){
+                assetReport.layerCount_could_be_issue++
+            }
+
+            if(currentReport.imageModeOk === false || currentReport.imageModeOk === 'false'){
+                assetReport.colorSpace_was_issue++
             }
         }
 
         return assetReport
     }
 
+    /*****
+     * getAssetReportFileData
+     * get the files from the reporting storage
+     * 
+     */
+    async getAssetReportFileData() {
+        let fileLib = await this.getFileLib()
+        const stateListResult = await fileLib.list(`${this.storagePath}`)
+
+        //now lets setup the results counter object
+        let assetFileReport = []
+        for(let i = 0; i < stateListResult.length; i++){
+            let reportBuffer = await fileLib.read(stateListResult[i].name)
+
+            let currentReport = JSON.parse(reportBuffer.toString())
+            assetFileReport.push(currentReport)
+        }
+
+        return assetFileReport
+    }
     /***
      * clean the asset report data files
      * 
@@ -96,6 +125,7 @@ const AssetReportEngine = class {
 
     /*****
      * save the asset report to the storage
+     * we use aem asset uuid for file name to avoid dupe asset reports
      * 
      * @param {AssetReport} report asset report object
      * 
@@ -103,8 +133,9 @@ const AssetReportEngine = class {
      */
     async saveAssetReport(report) {
         let fileLib = await this.getFileLib()
-        this.logger.debug(`saving asset report ${report.filename} to ${this.storagePath}`)
-        const stateResult = await fileLib.write(`${this.storagePath}${report.filename}`, JSON.stringify(report.getReportAsJson()));
+        const saveFileName = typeof this.aemAssetUuid !== 'undefined' ? `${this.aemAssetUuid}-asset-report.json` : report.filename
+        this.logger.debug(`saving asset report ${saveFileName} to ${this.storagePath}`)
+        const stateResult = await fileLib.write(`${this.storagePath}${saveFileName}`, JSON.stringify(report.getReportAsJson()));
 
         return stateResult
     }
@@ -125,9 +156,11 @@ const AssetReportEngine = class {
  * 
  * This class is used to create an asset report object that can be used to store and report on the asset data
  * 
+ * 
  */
 const AssetReport = class{
-    constructor(pFilename){
+    constructor(pFilename,pLogger){
+      this.logger = pLogger || Core.Logger('AssetReport', { level: 'debug' })
       this._filename = pFilename
       this._artboardCount = 0
       this._bitDepth = 'na'
@@ -139,11 +172,12 @@ const AssetReport = class{
       this._aemFileName =''
       this._aemFilePath = ''
       this._aemFileUuid = ''
+      this._layerCount = 0
     }
 
     /****** getters/setters  ******/
     get status(){
-        if(this.artboardCountOk && this.widthOk && this.heightOk && this.sizeOk){
+        if(this.artboardCountOk && this.widthOk && this.heightOk && this.sizeOk && this.imageModeOk && this.layerCountOk){
             return 'ok'
         }else{
             return 'error'
@@ -151,19 +185,27 @@ const AssetReport = class{
     }
 
     get artboardCountOk(){
-        return this.artboardCount > 1 ? false : true
+        return (this.artboardCount > 1 ? false : true)
     }
 
     get widthOk(){
-        return this.width > 8000 ? false : true
+        return (this.width > 8000 ? false : true)
     }
 
     get heightOk(){
-        return this.height > 8000 ? false : true
+        return (this.height > 8000 ? false : true)
     }
 
     get sizeOk(){
-        return this.size > 520093696 ? false : true
+        return (this.size > 520093696 ? false : true)
+    }
+
+    get imageModeOk(){
+        return (this.imageMode !== 'cmyk' ? true : false)
+    }
+
+    get layerCountOk(){
+        return (this._layerCount > 10 ? false : true)
     }
 
     set artboardCount(value){
@@ -247,6 +289,10 @@ const AssetReport = class{
         return this._aemFileUuid
     }
 
+    get layerCount(){  
+        return this._layerCount
+    }
+
 
     /******** QA Rules ********/
     /****
@@ -267,17 +313,48 @@ const AssetReport = class{
         if (typeof manifest !== "object") {
           throw new Error("manifest needs to be an object")
         }
+        this.logger.debug(`AssetReport:numberOfArtBoardsInManifest`)
+        this.logger.debug(JSON.stringify(manifest, null, 2))
       
         let artBoardCount = 0;
         manifest.outputs.map((output) => {
-          output.layers.map((layer) => {
-            if (layer.type && layer.type == "layerSection") {
+          output.layers.map((artBoard) => {
+            if (artBoard.type && artBoard.type == "layerSection") {
               artBoardCount = artBoardCount + 1
+              if(artBoard.children){
+                artBoard.children.map((child) => {
+                    if (child.type && child.type == "layer") {
+                      this._layerCount++
+                    }
+                })
+              }
             }
           })
         })
-      
+        
+        this.logger.debug(`artBoardCount: ${artBoardCount}`)
         return artBoardCount
+    }
+
+    /***
+     * get a count of the layers in the manifest that are not type artboard
+     */
+    numberOfLayersInManifest(manifest){
+        if (typeof manifest !== "object") {
+          throw new Error("manifest needs to be an object")
+        }
+        this.logger.debug(`AssetReport:numberOfLayersInManifest`)
+        this.logger.debug(JSON.stringify(manifest, null, 2))
+      
+        let layerCount = 0;
+        manifest.outputs[0].layers.map((layer) => {
+            if (layer.type && layer.type !== "layerSection") {
+                layerCount = layerCount + 1
+            }
+        })
+        
+        this.logger.debug(`layerCount: ${layerCount}`)
+        return layerCount
     }
 
     /******
@@ -299,6 +376,7 @@ const AssetReport = class{
      * @param {object} manifest json manifest object from photoshop api
      */
     setReportValuesBasedOnManifest(manifest){
+        this.artboardCount = this.numberOfArtBoardsInManifest(manifest)
         this.bitDepth = manifest.outputs[0].document.bitDepth
         this.width = manifest.outputs[0].document.width
         this.height = manifest.outputs[0].document.height
@@ -318,6 +396,7 @@ const AssetReport = class{
     getReportAsJson(){
         const report = {
             "artboardCount": this.artboardCount,
+            "layerCount": this._layerCount,
             "filename": this.filename,
             "aemFileName": this.aemFileName,
             "aemFilePath": this.aemFilePath,
@@ -332,6 +411,7 @@ const AssetReport = class{
             "heightOk": this.heightOk,
             "iccProfileName": this.iccProfileName,
             "imageMode": this.imageMode,
+            "imageModeOk": this.imageModeOk,
             "status": this.status
         }
         return report

@@ -13,6 +13,7 @@ const fetch = require('node-fetch')
 const { Core, State } = require('@adobe/aio-sdk')
 const { errorResponse, getBearerToken, stringParameters, checkMissingRequestInputs } = require('../utils')
 const openwhisk = require("openwhisk")
+const { getPhotoshopManifestForPresignedUrl, sleepCscRequest } = require('../fireflyCscUtils')
 
 // main function that will be executed by Adobe I/O Runtime
 async function main (params) {
@@ -60,8 +61,42 @@ async function main (params) {
 
         // check to see if we got a manifest or if the request failed
         if(params.event.body.outputs[0].status === 'failed'){
-          logger.error(`Failed to get manifest for job ${psApiJobId} for aem asset ${jobData.value.aemHost}${jobData.value.aemAssetPath}  ${JSON.stringify(params.event.body.outputs[0], null, 2)}`)
-          return errorResponse(500, `Failed to get manifest for aem asset ${jobData.value.aemHost}${jobData.value.aemAssetPath} on presigned url ${jobData.value.aemAssetPresignedDownloadPath}`, logger)
+          logger.error(`Failed to get manifest for job ${psApiJobId} for aem asset ${jobData.value.aemHost}${jobData.value.aemAssetPath} retry count is ${jobData.value.processPassCount} ${typeof jobData.value.processPassCount} ${JSON.stringify(params.event.body, null, 2)}`)
+
+          if(jobData.value.processPassCount < 5){
+            if(typeof params.event.body.outputs[0].errors.details.reason !== 'undefined' && params.event.body.outputs[0].errors.details.reason === 'Unable to download the assets'){
+              // retry the download
+              logger.debug(`onPsApiProcComplete retrying ${jobData.value.processPassCount} download for job ${psApiJobId} for aem asset ${jobData.value.aemHost}${jobData.value.aemAssetPath}`)
+              await sleepCscRequest(15000) // sleep for 15 seconds
+              //Retry ps job
+              let submitManifestRequestCallResults
+              try {
+                logger.debug(`${actionName}:getPhotoshopManifestForPresignedUrl retry number ${jobData.value.processPassCount} for ${assetPresignedUrl}`)
+                //debuggerOutput(JSON.stringify(params, null, 2))
+                params.throwIoEvent = true //throw an IO event for the manifest job completion
+                submitManifestRequestCallResults = await getPhotoshopManifestForPresignedUrl(jobData.value.aemAssetPresignedDownloadPath,params,logger)
+
+                if(submitManifestRequestCallResults === undefined || submitManifestRequestCallResults === null){
+                  logger.error(`${actionName}:getPhotoshopManifestForPresignedUrl failure'`)
+                  return errorResponse(500, `${actionName}:getPhotoshopManifestForPresignedUrl `, logger)
+                }
+                logger.debug(`${actionName}:getPhotoshopManifestForPresignedUrl complete ${submitManifestRequestCallResults['_links'].self.href}`)
+                logger.debug(JSON.stringify(submitManifestRequestCallResults, null, 2))
+
+              } catch (error) {
+                logger.error(`${actionName}:getPhotoshopManifestForPresignedUrl failure`)
+                logger.error(JSON.stringify(error))
+                return errorResponse(500, `${actionName}:getPhotoshopManifestForPresignedUrl failure`, logger)
+              }
+
+              return errorResponse(500, `Failed to get manifest for aem asset ${jobData.value.aemHost}${jobData.value.aemAssetPath} on presigned url ${jobData.value.aemAssetPresignedDownloadPath}`, logger)  
+            }else{
+              return errorResponse(500, `Failed to get manifest for aem asset ${jobData.value.aemHost}${jobData.value.aemAssetPath} on presigned url ${jobData.value.aemAssetPresignedDownloadPath}`, logger)  
+            }
+          }else{
+            await state.delete(psApiJobId)
+            return errorResponse(500, `Failed to get manifest for aem asset on presigned url ${jobData.value.aemAssetPresignedDownloadPath} TOO MANY ATTEMPTS ${jobData.value.processPassCount}`, logger)  
+          }
         }
 
         /************
