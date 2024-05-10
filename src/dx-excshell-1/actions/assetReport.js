@@ -38,12 +38,14 @@ const AssetReportEngine = class {
         //now lets setup the results counter object
         let assetReport = {
             total_count: 0,
+            total_known_issues_count: 0,
             size_was_issue: 0,
             width_was_issue: 0,
             height_was_issue: 0,  
             artboardCount_was_issue: 0,
             layerCount_could_be_issue: 0,
-            colorSpace_was_issue: 0
+            colorSpace_was_issue: 0,
+            smartObjectCount_was_issue: 0
         }
 
         for(let i = 0; i < stateListResult.length; i++){
@@ -72,6 +74,14 @@ const AssetReportEngine = class {
 
             if(currentReport.imageModeOk === false || currentReport.imageModeOk === 'false'){
                 assetReport.colorSpace_was_issue++
+            }
+
+            if(currentReport.smartObjectCountOk === false || currentReport.smartObjectCountOk === 'false'){
+                assetReport.smartObjectCount_was_issue++
+            }
+
+            if(currentReport.status === 'error'){
+                assetReport.total_known_issues_count++
             }
         }
 
@@ -163,6 +173,10 @@ const AssetReport = class{
       this.logger = pLogger || Core.Logger('AssetReport', { level: 'debug' })
       this._filename = pFilename
       this._artboardCount = 0
+      this._layerCount = 0
+      this._smartObjectCount = 0
+      this._textLayerStyleCount = 0
+      this._textLayerCount = 0
       this._bitDepth = 'na'
       this._size = 0
       this._width = 0
@@ -172,12 +186,11 @@ const AssetReport = class{
       this._aemFileName =''
       this._aemFilePath = ''
       this._aemFileUuid = ''
-      this._layerCount = 0
     }
 
-    /****** getters/setters  ******/
+    /****** checks  ******/
     get status(){
-        if(this.artboardCountOk && this.widthOk && this.heightOk && this.sizeOk && this.imageModeOk && this.layerCountOk){
+        if(this.artboardCountOk && this.widthOk && this.heightOk && this.sizeOk && this.imageModeOk && this.layerCountOk && this.smartObjectCountOk){
             return 'ok'
         }else{
             return 'error'
@@ -205,14 +218,35 @@ const AssetReport = class{
     }
 
     get layerCountOk(){
-        return (this._layerCount > 10 ? false : true)
+        return (this._layerCount > 20 ? false : true)
     }
 
+    get smartObjectCountOk(){
+        return (this._smartObjectCount > 0 ? false : true)
+    }
+
+    /***** getters and setters ******/
     set artboardCount(value){
         this._artboardCount = value
     }
     get artboardCount(){
         return this._artboardCount
+    }
+
+    get layerCount(){  
+        return this._layerCount
+    }
+
+    get smartObjectCount(){
+        return this._smartObjectCount
+    }
+    
+    get textLayerCount(){
+        return this._textLayerCount
+    }
+
+    get textLayerStyleCount(){
+        return this._textLayerStyleCount
     }
 
     set bitDepth(value){
@@ -289,10 +323,6 @@ const AssetReport = class{
         return this._aemFileUuid
     }
 
-    get layerCount(){  
-        return this._layerCount
-    }
-
 
     /******** QA Rules ********/
     /****
@@ -305,56 +335,45 @@ const AssetReport = class{
     }
 
     /****
-     * get a count of the artboards in the manifest
+     * get a count of the artboards/layers/groups and smart objects in the manifest
      * 
      * @param {object} manifest json manifest object from photoshop api
      */
-    numberOfArtBoardsInManifest(manifest){
+    parseLayerObjectCountFromManifest(manifest){
         if (typeof manifest !== "object") {
           throw new Error("manifest needs to be an object")
         }
-        this.logger.debug(`AssetReport:numberOfArtBoardsInManifest`)
+        this.logger.debug(`AssetReport:parseLayerObjectCountFromManifest`)
         this.logger.debug(JSON.stringify(manifest, null, 2))
       
-        let artBoardCount = 0;
-        manifest.outputs.map((output) => {
-          output.layers.map((artBoard) => {
-            if (artBoard.type && artBoard.type == "layerSection") {
-              artBoardCount = artBoardCount + 1
-              if(artBoard.children){
-                artBoard.children.map((child) => {
-                    if (child.type && child.type == "layer") {
-                      this._layerCount++
-                    }
-                })
-              }
-            }
-          })
+        manifest.outputs[0].layers.map((layer) => {
+            this.recuresiveLayerCount(layer)
         })
         
-        this.logger.debug(`artBoardCount: ${artBoardCount}`)
-        return artBoardCount
+        this.logger.debug(`artBoardCount: ${this._artboardCount}`)
+        return true
     }
 
-    /***
-     * get a count of the layers in the manifest that are not type artboard
-     */
-    numberOfLayersInManifest(manifest){
-        if (typeof manifest !== "object") {
-          throw new Error("manifest needs to be an object")
+    recuresiveLayerCount(layer){
+        if (layer.type && layer.type == "layerSection") {
+            //Artboard and Groups ( i cant tell the difference in the manifest )
+            this._artboardCount++
+        }else if(layer.type && layer.type == "layer"){
+            //Layer
+            this._layerCount++
+        }else if(layer.type && layer.type == "smartObject"){
+            //Smart Object
+            this._smartObjectCount++
+        }else if(layer.type && layer.type == "textLayer"){
+            //Text Layer
+            this._textLayerCount++
         }
-        this.logger.debug(`AssetReport:numberOfLayersInManifest`)
-        this.logger.debug(JSON.stringify(manifest, null, 2))
-      
-        let layerCount = 0;
-        manifest.outputs[0].layers.map((layer) => {
-            if (layer.type && layer.type !== "layerSection") {
-                layerCount = layerCount + 1
-            }
-        })
         
-        this.logger.debug(`layerCount: ${layerCount}`)
-        return layerCount
+        if(layer.children){
+            layer.children.map((child) => {
+                this.recuresiveLayerCount(child)
+            })
+        }
     }
 
     /******
@@ -376,7 +395,7 @@ const AssetReport = class{
      * @param {object} manifest json manifest object from photoshop api
      */
     setReportValuesBasedOnManifest(manifest){
-        this.artboardCount = this.numberOfArtBoardsInManifest(manifest)
+        this.parseLayerObjectCountFromManifest(manifest)
         this.bitDepth = manifest.outputs[0].document.bitDepth
         this.width = manifest.outputs[0].document.width
         this.height = manifest.outputs[0].document.height
@@ -395,23 +414,28 @@ const AssetReport = class{
 
     getReportAsJson(){
         const report = {
+            "artboardCountOk": this.artboardCountOk,
+            "layerCountOk": this.layerCountOk,
+            "smartObjectCountOk": this.smartObjectCountOk,
+            "imageModeOk": this.imageModeOk,
+            "heightOk": this.heightOk,
+            "widthOk": this.widthOk,
+            "sizeOk": this.sizeOk,
             "artboardCount": this.artboardCount,
             "layerCount": this._layerCount,
+            "smartObjectCount": this._smartObjectCount,
+            "imageMode": this.imageMode,
+            "height": this.height,
+            "width": this.width,
+            "size": this.size,
+            "textLayerCount": this._textLayerCount,
+            "textLayerStyleCount": this._textLayerStyleCount,
             "filename": this.filename,
             "aemFileName": this.aemFileName,
             "aemFilePath": this.aemFilePath,
             "aemFileUuid": this.aemFileUuid,    
-            "artboardCountOk": this.artboardCountOk,
-            "size": this.size,
-            "sizeOk": this.sizeOk,
             "bitDepth": this.bitDepth,
-            "width": this.width,
-            "widthOk": this.widthOk,
-            "height": this.height,
-            "heightOk": this.heightOk,
             "iccProfileName": this.iccProfileName,
-            "imageMode": this.imageMode,
-            "imageModeOk": this.imageModeOk,
             "status": this.status
         }
         return report

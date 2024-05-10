@@ -1,0 +1,192 @@
+{
+  "blendOptions": {
+    "blendMode": "normal",
+    "opacity": 100
+  },
+  "bounds": {
+    "height": 1500,
+    "left": 0,
+    "top": 0,
+    "width": 2100
+  },
+  "children": [
+    {
+      "blendOptions": {
+        "blendMode": "normal",
+        "opacity": 100
+      },
+      "bounds": {
+        "height": 1500,
+        "left": 0,
+        "top": 0,
+        "width": 2100
+      },
+      "id": 17,
+      "index": 8,
+      "locked": false,
+      "mask": {
+        "enabled": true,
+        "linked": true,
+        "offset": {
+          "x": 0,
+          "y": 0
+        },
+        "type": "layer"
+      },
+      "name": "cartoon duck with a silly hat on talking to a frog",
+      "rotate": 0,
+      "type": "layer",
+      "visible": true
+    },
+    {
+      "blendOptions": {
+        "blendMode": "passThrough",
+        "opacity": 100
+      },
+      "bounds": {
+        "height": 1500,
+        "left": 0,
+        "top": 0,
+        "width": 2100
+      },
+      "children": [
+        {
+          "blendOptions": {
+            "blendMode": "normal",
+            "opacity": 100
+          },
+          "bounds": {
+            "height": 1500,
+            "left": 0,
+            "top": 0,
+            "width": 2100
+          },
+          "id": 21,
+          "index": 6,
+          "locked": false,
+          "name": "Layer 3",
+          "rotate": 0,
+          "type": "layer",
+          "visible": true
+        }
+      ],
+      "id": 22,
+      "index": 7,
+      "locked": false,
+      "name": "Group 1",
+      "rotate": 0,
+      "type": "layerSection",
+      "visible": true
+    },
+    {
+      "blendOptions": {
+        "blendMode": "normal",
+        "opacity": 100
+      },
+      "bounds": {
+        "height": 1500,
+        "left": 0,
+        "top": 0,
+        "width": 2100
+      },
+      "id": 16,
+      "index": 4,
+      "locked": false,
+      "name": "Rectangle 3",
+      "rotate": 0,
+      "type": "layer",
+      "visible": true
+    },
+    {
+      "blendOptions": {
+        "blendMode": "normal",
+        "opacity": 100
+      },
+      "bounds": {
+        "height": 1500,
+        "left": 0,
+        "top": 0,
+        "width": 2100
+      },
+      "fill": {
+        "solidColor": {
+          "rgb": {
+            "blue": 180,
+            "green": 125,
+            "red": 76
+          }
+        }
+      },
+      "id": 15,
+      "index": 3,
+      "locked": false,
+      "name": "Rectangle 2",
+      "rotate": 0,
+      "type": "fillLayer",
+      "visible": true
+    },
+    {
+      "blendOptions": {
+        "blendMode": "normal",
+        "opacity": 100
+      },
+      "bounds": {
+        "height": 1500,
+        "left": 0,
+        "top": 0,
+        "width": 2100
+      },
+      "id": 2,
+      "index": 2,
+      "locked": false,
+      "mask": {
+        "enabled": true,
+        "linked": true,
+        "offset": {
+          "x": 0,
+          "y": 0
+        },
+        "type": "layer"
+      },
+      "name": "Gradient Fill 1",
+      "rotate": 0,
+      "type": "fillLayer",
+      "visible": true
+    },
+    {
+      "blendOptions": {
+        "blendMode": "normal",
+        "opacity": 100
+      },
+      "bounds": {
+        "height": 1500,
+        "left": 0,
+        "top": 0,
+        "width": 2100
+      },
+      "fill": {
+        "solidColor": {
+          "rgb": {
+            "blue": 255,
+            "green": 255,
+            "red": 255
+          }
+        }
+      },
+      "id": 5,
+      "index": 1,
+      "locked": false,
+      "name": "Layer 0",
+      "rotate": 0,
+      "type": "fillLayer",
+      "visible": true
+    }
+  ],
+  "id": 3,
+  "index": 9,
+  "locked": false,
+  "name": "Artboard 1",
+  "rotate": 0,
+  "type": "layerSection",
+  "visible": true
+}
