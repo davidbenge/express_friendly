@@ -64,9 +64,6 @@ async function main (params) {
     let assetReportEngine = new AssetReportEngine()
     let assetReport = await assetReportEngine.getAssetReportData()
 
-    debuggerOutput('assetReport')
-    debuggerOutput(assetReport)
-    debuggerOutput(assetReport.filename)
     content.assetReport = assetReport
 
     const response = {

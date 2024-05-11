@@ -123,13 +123,9 @@ const AssetReportEngine = class {
     /*****
      * get the asset report object for use with the engine
      * 
-     * @param {string} filename the filename of the asset report to create
      */
-    getNewAssetReport(filename) {
-        if(typeof filename === 'undefined'){
-            filename = `${Date.now()}-${Math.floor(Math.random() * 1000)}-asset-report.json` //randomize the filename
-        }
-        this.currentAssetReport = new AssetReport(filename)
+    getNewAssetReport() {
+        this.currentAssetReport = new AssetReport(this.logger)
         return this.currentAssetReport
     }
 
@@ -169,9 +165,8 @@ const AssetReportEngine = class {
  * 
  */
 const AssetReport = class{
-    constructor(pFilename,pLogger){
+    constructor(pLogger){
       this.logger = pLogger || Core.Logger('AssetReport', { level: 'debug' })
-      this._filename = pFilename
       this._artboardCount = 0
       this._layerCount = 0
       this._smartObjectCount = 0
@@ -186,6 +181,7 @@ const AssetReport = class{
       this._aemFileName =''
       this._aemFilePath = ''
       this._aemFileUuid = ''
+      this._filename = ''
     }
 
     /****** checks  ******/
@@ -386,6 +382,7 @@ const AssetReport = class{
       this.aemFileName = jobSecodaryData.aemAssetName
       this.aemFilePath = jobSecodaryData.aemAssetPath
       this.aemFileUuid = jobSecodaryData.aemAssetUuid
+      this._filename = jobSecodaryData.aemAssetUuid.split(':').pop() + '-asset-report.json'
     }
 
     /*****
