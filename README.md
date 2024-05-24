@@ -4,7 +4,7 @@ This example application is built to show people how to use Adobe AEM Assets and
 In this code base we will be waiting for the AEM Asset Processing Complete IO Event and then doing some work against the newly processed asset.  When we inspect the event we will be looking to see if the asset proccessed was a PSD.  If it was a PSD we want to take that file and process it with the Firefly services Photoshop api and get the manifest file.  The manifest file is then returned by the service and we will evaluate the manifest to see what features were used to construct the photoshop file.  We will count then rank what we find then we will provide a compatibilty report and set some metadata on the processed Asset.
 
 
-![Architecture Diagram](https://github.com/davidbenge/express_friendly/blob/main/demo/Pfizer - Express Safe Audit.png?raw=true)
+![Architecture Diagram](https://github.com/davidbenge/express_friendly/blob/main/demo/Pfizer%20-%20Express%20Safe%20Audit.png?raw=true)
 
 This code is not warrentied by Adobe and is provided for demonstration use. 
 
