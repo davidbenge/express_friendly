@@ -29,7 +29,7 @@ runtimeManifest:
             FIREFLY_SERVICES_SCOPES: $FIREFLY_SERVICES_SCOPES
             GENERATE_AUDIT_REPORT_LOG: $GENERATE_AUDIT_REPORT_LOG
           annotations:
-            require-adobe-auth: false
+            require-adobe-auth: true
             final: true
         clearExpressAuditData:
           function: actions/clearExpressAuditData/index.js
@@ -51,7 +51,7 @@ runtimeManifest:
             FIREFLY_SERVICES_SCOPES: $FIREFLY_SERVICES_SCOPES
             GENERATE_AUDIT_REPORT_LOG: $GENERATE_AUDIT_REPORT_LOG
           annotations:
-            require-adobe-auth: false
+            require-adobe-auth: true
             final: true
         getExpressAuditReport:
           function: actions/getExpressAuditReport/index.js
@@ -73,7 +73,7 @@ runtimeManifest:
             FIREFLY_SERVICES_SCOPES: $FIREFLY_SERVICES_SCOPES
             GENERATE_AUDIT_REPORT_LOG: $GENERATE_AUDIT_REPORT_LOG
           annotations:
-            require-adobe-auth: false
+            require-adobe-auth: true
             final: true
         getAemFileExpressAudit:
           function: actions/getAemFileExpressAudit/index.js
@@ -95,7 +95,7 @@ runtimeManifest:
             FIREFLY_SERVICES_SCOPES: $FIREFLY_SERVICES_SCOPES
             GENERATE_AUDIT_REPORT_LOG: $GENERATE_AUDIT_REPORT_LOG
           annotations:
-            require-adobe-auth: false
+            require-adobe-auth: true
             final: true
         get-auth:
           function: actions/get-auth/index.js
@@ -121,15 +121,6 @@ runtimeManifest:
             AEM_SERVICE_TECH_ACCOUNT_META_SCOPES: $AEM_SERVICE_TECH_ACCOUNT_META_SCOPES
             AEM_USE_PASSED_AUTH: $GET_AEM_ASSET_DATA__AEM_USE_PASSED_AUTH
           annotations:
-            require-adobe-auth: false
-            final: true
-        generic:
-          function: actions/generic/index.js
-          web: 'yes'
-          runtime: nodejs:18
-          inputs:
-            LOG_LEVEL: debug
-          annotations:
             require-adobe-auth: true
             final: true
         getAemPresignedUrl:
@@ -146,7 +137,7 @@ runtimeManifest:
             AEM_SERVICE_TECH_ACCOUNT_META_SCOPES: $AEM_SERVICE_TECH_ACCOUNT_META_SCOPES
             AEM_USE_PASSED_AUTH: $GET_AEM_ASSET_DATA__AEM_USE_PASSED_AUTH
           annotations:
-            require-adobe-auth: false
+            require-adobe-auth: true
             final: true
         onAemProcComplete:
           function: actions/onAemProcComplete/index.js
@@ -216,5 +207,5 @@ runtimeManifest:
             NEW_RELIC_LOG_LEVEL: $NEW_RELIC_LOG_LEVEL
             NEW_RELIC_ACCOUNT_ID: $NEW_RELIC_ACCOUNT_ID 
           annotations:
-            require-adobe-auth: false
+            require-adobe-auth: true
             final: true

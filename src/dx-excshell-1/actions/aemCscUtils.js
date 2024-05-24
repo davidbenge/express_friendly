@@ -272,9 +272,14 @@ async function writeJsonExpressCompatibiltyReportToComment(aemHost,aemAssetPath,
     height ok: ${jsonReport.heightOk}
     icc profile name: ${jsonReport.iccProfileName}
     image mode: ${jsonReport.imageMode}
+    image mode ok: ${jsonReport.imageModeOk}
     status: ${jsonReport.status}
     width: ${jsonReport.width}
     width ok: ${jsonReport.widthOk}
+    smart object count: ${jsonReport.smartObjectCount}
+    smart object count ok: ${jsonReport.smartObjectCountOk}
+    layer count: ${jsonReport.layerCount}
+    layer count ok: ${jsonReport.layerCountOk}
   `
 
   let annotations
