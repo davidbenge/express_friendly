@@ -381,3 +381,39 @@ module.exports = {
   getAemAssetPresignedDownloadUrl,
   addMetadataToAemAsset
 }
+
+
+/***
+ * TODO: add in the comments and annotations to the new UI.  Comments are not working in the new UI
+ * 
+ * Delhibabu Vengam bhanumoorthy
+  4 days ago
+Comment creation API for Assets view UI - http://localhost:4502/adobe/collab/annots/id/content/dam/dbhanu/view.jpeg?api_version=1.x
+asset path - /content/dam/dbhanu/view.jpeg -- This needs to be replaced with actual asset path
+URI path - http://localhost:4502 -- This needs to be replaced with correct domain url
+Sample Payload :
+value : This holds actual comment
+collab:source : identifier starting with bf6547f7 is the jcr:uuid of the asset which is present under the asset name. In this case its present under view.jpeg
+Authentication : Bearer Token configured.
+{
+    "collab:body": {
+        "dc:format": "text/plain",
+        "value": "C1 comment"
+    },
+    "collab:motivation": "commenting",
+    "collab:target": {
+        "collab:source": "urn:aaid:aem:bf6547f7-5deb-4bed-9a30-7e048984b8e7",
+        "collab:selector": {
+            "collab:primarySelector":[
+                {
+                    "collab:type": "NodeSelector",
+                    "collab:id":"1"
+            }
+            ],
+            "collab:type": "node"
+        }
+    },
+    "collab:mentions": []
+}
+ * 
+ */
