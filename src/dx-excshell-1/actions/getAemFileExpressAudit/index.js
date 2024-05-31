@@ -11,6 +11,17 @@
  * aeAssetPath - the aem asset path
  * and optional jobSecodaryData - this is the data from the job that was processed before this action was called.  This avoids us having to hit aem again to get the asset size.
  * 
+ * Change Log
+ * 
+ * 5-30-2024
+ * Field Name: Adobe Express Compatible
+ * Metadata property: adobe-express-compatible
+ * Result: Compatible_Linked
+ *
+ * Field Name: Adobe Express Compatible
+ * Metadata property: adobe-express-compatible
+ * Result: Compatible_Editable
+ * 
  */
 
 
@@ -114,12 +125,17 @@ async function main (params) {
       }
     } 
 
-    // Write the report to the asset
+    // Write the report to the asset comments in AEM Touch UI
     await writeJsonExpressCompatibiltyReportToComment(params.aemHost,params.aemAssetPath,assetReport.getReportAsJson(),params,logger)
     debuggerOutput("getAemFileExpressAudit done with writeJsonExpressCompatibiltyReportToComment")
 
-    const metadataValue = assetReport.status === 'ok' ? 'should work' : 'will require work'
-    await addMetadataToAemAsset(params.aemHost,params.aemAssetPath,"/express-friendly",metadataValue,params,logger)
+    // Write the report to the asset comments in AEM Experience Shell UI
+    //TODO: Write the report to the asset comments in AEM Experience Shell UI
+
+    // Add metadata to the asset in AEM which has the status message for the Express users
+    const metadataValue = assetReport.status === 'ok' ? 'Compatible_Editable' : 'Compatible_Linked'
+    
+    await addMetadataToAemAsset(params.aemHost,params.aemAssetPath,"/adobe-express-compatible",metadataValue,params,logger)
     debuggerOutput("getAemFileExpressAudit done with addMetadataToAemAsset")
     
     debuggerOutput(assetReport.getReportAsJson())

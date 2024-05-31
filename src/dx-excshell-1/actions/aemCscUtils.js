@@ -388,6 +388,7 @@ module.exports = {
  * 
  * Delhibabu Vengam bhanumoorthy
   4 days ago
+  DEBUGGING  still not working
 Comment creation API for Assets view UI - http://localhost:4502/adobe/collab/annots/id/content/dam/dbhanu/view.jpeg?api_version=1.x
 asset path - /content/dam/dbhanu/view.jpeg -- This needs to be replaced with actual asset path
 URI path - http://localhost:4502 -- This needs to be replaced with correct domain url
