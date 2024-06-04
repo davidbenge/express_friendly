@@ -1,5 +1,7 @@
 /**
  * This takes all the needed params and passes back a jwt token for use
+ * 
+ * Do not remove the \r\n from the private key if its not the base64 version
  */
 
 
@@ -15,6 +17,10 @@ const REQUEST_FAILED = 'request_failed';
 const UNEXPECTED_RESPONSE_BODY = 'invalid_response_body';
 
 // main function that will be executed by Adobe I/O Runtime
+/* 
+* @param {object} params - raw request parameters
+* @param {string} params.private_key - Do not remove the \r\n from the private key if its not the base64 version
+*/
 async function main (params) {
   // create a Logger
   const logger = Core.Logger('main', { level: params.LOG_LEVEL || 'info' })
