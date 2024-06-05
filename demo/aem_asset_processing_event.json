@@ -1,7 +1,7 @@
 {
-    "source": "acct:aem-p113102-e1111829@adobe.com",
+    "source": "acct:aem-p113102-ssss@adobe.com",
     "data": {
-      "assetId": "urn:aaid:aem:098c397a-094c-4ee3-a83c-483917913628",
+      "assetId": "urn:aaid:aem:098c397a-094c-4ee3-a83c-sdfdsfsd",
       "assetMetadata": {
         "xcm:machineKeywords": [
           {
@@ -59,17 +59,17 @@
         "dam:sha1": "81f895e212d9e80fe1ee5d10763a7b8b81134c88",
         "dc:format": "image/vnd.adobe.photoshop",
         "repo:ancestors": [
-          "urn:aaid:aem:4b1721b8-f11b-4fbc-9eb7-060106435b62"
+          "urn:aaid:aem:4b1721b8-f11b-4fbc-9eb7-sdfdsf"
         ],
         "repo:assetClass": "file",
-        "repo:assetId": "urn:aaid:aem:098c397a-094c-4ee3-a83c-483917913628",
+        "repo:assetId": "urn:aaid:aem:098c397a-094c-4ee3-a83c-sdfdsfdsf",
         "repo:createDate": "2024-04-13T01:48:05.416Z",
         "repo:createdBy": "DBENGE@ADOBE.COM",
         "repo:modifiedBy": "DBENGE@ADOBE.COM",
         "repo:modifyDate": "2024-05-04T22:27:22.939Z",
-        "repo:name": "paxlovid_global_know-plan-go_image_secondary-image-woman-14_.psd",
-        "repo:path": "/content/dam/hsl_company/comercial/bu_b/paxlovid_global_know-plan-go_image_secondary-image-woman-14_.psd",
-        "repo:repositoryId": "author-p113102-e1111829.adobeaemcloud.com",
+        "repo:name": "sdfsdf-plan-go_image_secondary-image-woman-14_.psd",
+        "repo:path": "/content/dam/hsl_company/comercial/bu_b/sdfdsf-plan-go_image_secondary-image-woman-14_.psd",
+        "repo:repositoryId": "author-p113102-sdfds.adobeaemcloud.com",
         "repo:size": "212345318",
         "repo:state": "ACTIVE",
         "repo:version": "1.1::ci:8f6dfc2d76f237dc338762c1d3771bc4",
@@ -77,12 +77,12 @@
         "tiff:imageWidth": 6720
       }
     },
-    "id": "be4ca13e-26b2-4658-826d-a19a28c396cd",
+    "id": "be4ca13e-26b2-4658-826d-sssss",
     "recipient_client_id": "106726fcfcce48928c57b45bb4c920fd",
     "time": "2024-05-04T22:27:22.974355Z",
     "type": "aem.assets.asset.processing_completed",
     "LOG_LEVEL": "debug",
     "datacontenttype": "application/json",
-    "event_id": "bfe6ed38-c20b-42d9-9402-6a19b72d9f28",
+    "event_id": "bfe6ed38-c20b-42d9-ssss-6a19b72d9f28",
     "specversion": "1.0"
   }
