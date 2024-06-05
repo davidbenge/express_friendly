@@ -108,3 +108,8 @@ GENERATE_AUDIT_REPORT_LOG=true  # this will record the audit findings so you can
 
 4. **utils.js**: Adobe App Builder common utils class.
 
+5. **adobeAuthUtils**: Contains a method for getting jwt auth tokens.
+
+
+# notes
+6-4-2024: updated the auth to a newer Adobe supported lib. Added auth utils module. 
