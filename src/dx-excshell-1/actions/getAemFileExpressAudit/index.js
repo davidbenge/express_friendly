@@ -24,11 +24,9 @@
  * 
  */
 
-
-const fetch = require('node-fetch')
-const { errorResponse, checkMissingRequestInputs, contentInit, stringParameters } = require('../utils')
+const { errorResponse, checkMissingRequestInputs, contentInit } = require('../utils')
 const { Core, State, Files, Logger } = require('@adobe/aio-sdk')
-const { getAemAssetData, writeJsonExpressCompatibiltyReportToComment, addMetadataToAemAsset } = require('../aemCscUtils')
+const { runExpressReport } = require('../aemCscUtils')
 const { AssetReportEngine } = require('../assetReport')
 
 // main function that will be executed by Adobe I/O Runtime
@@ -54,114 +52,14 @@ async function main (params) {
       return errorResponse(400, errorMessage, logger)
     }
 
-    // log parameters, only if params.LOG_LEVEL === 'debug'
-    if(params.LOG_LEVEL === 'debug'){
-      if(typeof content.debug == 'undefined') {
-        content.debug = {}
-        content.debug[actionName] = []
-      }
+    let invokeParams = {
+      "manifest": params.manifest,
+      "aemHost": params.aemHost,
+      "aemAssetPath": params.aemAssetPath,
+      "jobSecodaryData":params.jobSecodaryData || {}
+
     }
-
-    debuggerOutput = function(message){
-      if(params.LOG_LEVEL === 'debug'){
-        if(typeof message === 'string'){
-          logger.debug(message)
-          content.debug[actionName].push({"debugMessage":message})
-        }else{
-          logger.debug(JSON.stringify(message, null, 2))
-          content.debug[actionName].push(message)
-        }
-      }
-    }
-
-    debuggerOutput('manifest clean')
-    let manifestClean
-    if(typeof params.manifest !== "object") {
-      debuggerOutput('manifest type string')
-      return errorResponse(400, 'manifest type is not an json object', logger)
-    }else{
-      debuggerOutput('manifest clean object')
-      manifestClean = params.manifest
-    }
-    
-    /**** 
-     * Checks logic - via Ryan Mulvaney 5-24
-     * 
-     * 1. Filesize is greater than 500 MB +
-     * 2. image size is greater than 8k by 8k +
-     * 3. Color space equals sRGB (can't be CMKY)
-     * 4. File has more than one artboard +
-     * 5. File has Less than 10 photoshop layers (this one I'm kind of making up.  There's no real guidance here so maybe skip but anything with more than 10 layers just seems like a lot to handle in Express for a non creative)
-     * 6. A layer contains a Smart Object
-     * 7. A Text layer has a layer style applied
-     * 8. A non Adobe Font is used (There is not an existing list of all Adobe Fonts so I'm not sure how this would flag in the manifest but the photoshop file does flag if a font is missing when opened.  I should show you an example with one of the Pfizer files if needed) (edited) 
-     * 
-     * */
-    let assetReportEngine = new AssetReportEngine()
-    let assetReport = assetReportEngine.getNewAssetReport()
-    debuggerOutput(`${actionName} got new action report object`)
-
-    // too many artboards?  #2
-    //assetReport.setArtboardCount(manifestClean)
-    assetReport.setReportValuesBasedOnManifest(manifestClean)
-
-    if(typeof params.jobSecodaryData !== 'undefined'){
-      assetReport.setReportValuesBasedOnSecondaryJobData(params.jobSecodaryData)
-    }
-    else{
-      // Change this to the path of the image you want to check
-      const aemImageData = await getAemAssetData(params.aemHost,params.aemAssetPath,params,logger)
-      debuggerOutput('aemImageData')
-      //debuggerOutput(aemImageData)
-
-      if(typeof aemImageData !== 'undefined' && typeof aemImageData.body !== 'undefined'){
-        debuggerOutput("aem file got image data")
-        //debuggerOutput(aemImageData)
-        assetReport.setValuesBasedOnAemAssetDataCall(aemImageData)
-      }else{
-        //debuggerOutput(aemImageData)
-        debuggerOutput("failed to get aem file data")
-        logger.error("Failed to get aem file data")
-      }
-    } 
-
-    // Write the report to the asset comments in AEM Touch UI
-    await writeJsonExpressCompatibiltyReportToComment(params.aemHost,params.aemAssetPath,assetReport.getReportAsJson(),params,logger)
-    debuggerOutput("getAemFileExpressAudit done with writeJsonExpressCompatibiltyReportToComment")
-
-    // Write the report to the asset comments in AEM Experience Shell UI
-    //TODO: Write the report to the asset comments in AEM Experience Shell UI
-
-    // Add metadata to the asset in AEM which has the status message for the Express users
-    const metadataValue = assetReport.status === 'ok' ? 'Compatible_Editable' : 'Compatible_Linked'
-    
-    await addMetadataToAemAsset(params.aemHost,params.aemAssetPath,"/adobe-express-compatible",metadataValue,params,logger)
-    debuggerOutput("getAemFileExpressAudit done with addMetadataToAemAsset")
-    
-    debuggerOutput(assetReport.getReportAsJson())
-    content["asset_report"] = assetReport.getReportAsJson()
-    debuggerOutput("getAemFileExpressAudit done with asset_report response object")
-
-    // Mark job complete
-    params.jobSecodaryData.processingComplete = true
-    const state = await State.init()
-    const jobData = await state.put(params.jobSecodaryData.psApiJobId,params.jobSecodaryData,{ ttl: 18000 })
-    debuggerOutput("getAemFileExpressAudit finished the state update")
-
-    const response = {
-      statusCode: 200,
-      body: content
-    }
-
-    /****
-     * do we need to save a report?
-     */
-    let reportResult
-    if(params.GENERATE_AUDIT_REPORT_LOG === 'true' || params.GENERATE_AUDIT_REPORT_LOG === true){
-      reportResult = await assetReportEngine.saveCurrentAssetReport()
-      //debuggerOutput(`getAemFileExpressAudit finished the report save ${JSON.stringify(reportResult, null, 2)}`)
-      debuggerOutput(`getAemFileExpressAudit finished the report save`)
-    }
+    outputContent = await runExpressReport(invokeParams,params,logger)
 
     debuggerOutput("getAemFileExpressAudit ************************* DONE *************************")
     return response

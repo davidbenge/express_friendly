@@ -99,7 +99,7 @@ runtimeManifest:
             final: true
         get-auth:
           function: actions/get-auth/index.js
-          web: 'no'
+          web: 'yes'
           runtime: nodejs:18
           inputs:
             LOG_LEVEL: debug

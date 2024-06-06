@@ -236,14 +236,15 @@ async function writeCommentToAsset(aemHost,aemAssetPath,comment,annotations,para
   const form = new FormData()
   form.append('message', comment)
 
-  //if(typeof annotations != null && typeof annotations === 'object' && Object.keys(annotations).length > 0){
-  //  form.append('annotationData', annotations)
-  //}
+  if(typeof annotations != null && typeof annotations === 'object' && Object.keys(annotations).length > 0){
+    form.append('annotationData', annotations)
+  }
 
   const fetchUrl = aemHost + aemAssetPath
   logger.debug("writeCommentToAsset fetchUrl: " + fetchUrl)
 
   const aemAuthToken = await getAemAuth(params,logger)
+  logger.debug("writeCommentToAsset aemAuthToken: " + JSON.stringify(aemAuthToken, null, 2))
 
   const res = await fetch(fetchUrl, {
     method: 'POST',
@@ -292,7 +293,7 @@ async function writeJsonExpressCompatibiltyReportToComment(aemHost,aemAssetPath,
   `
 
   let annotations
-  let returnData = await writeCommentToAsset(aemHost,aemAssetPath, myReport,annotations,params,logger)
+  let returnData = await writeCommentToAsset(aemHost,aemAssetPath,myReport,annotations,params,logger)
 
   return returnData
 }
