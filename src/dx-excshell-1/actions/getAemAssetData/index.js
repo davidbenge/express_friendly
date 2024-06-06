@@ -28,7 +28,7 @@ async function main (params) {
   let debuggerOutput = null
   try{
     // 'info' is the default level if not set
-    logger.info('Calling the main action')
+    logger.info('Calling the main action getAemAssetData')
 
     // log parameters, only if params.LOG_LEVEL === 'debug'
     logger.debug(stringParameters(params))
