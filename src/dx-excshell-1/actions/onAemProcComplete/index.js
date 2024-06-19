@@ -76,105 +76,112 @@ async function main (params) {
       return errorResponse(400, errorMessage, logger)
     }
 
-    //IF not PSD skip
-    if(typeof params.data.repositoryMetadata !== 'undefined' && params.data.repositoryMetadata['dc:format'] === 'image/vnd.adobe.photoshop'){
-      // kick off request to get the psd manifest for an aem asset
-      const aemImageMetadata = params.data.repositoryMetadata
+    //IF not a asset processing complete event skip
+    if(typeof params.type !== 'undefined' && params.type !== 'aem.assets.asset.processing_completed'){
 
-      // get the aem asset path and repo id for next steps
-      const aemAssetPath = aemImageMetadata['repo:path']
-      const aemRepoId = aemImageMetadata['repo:repositoryId']
+      //IF not PSD skip
+      if(typeof params.data.repositoryMetadata !== 'undefined' && params.data.repositoryMetadata['dc:format'] === 'image/vnd.adobe.photoshop'){
+        // kick off request to get the psd manifest for an aem asset
+        const aemImageMetadata = params.data.repositoryMetadata
 
-      if(typeof aemAssetPath === 'undefined' || typeof aemRepoId === 'undefined'){
-        logger.error(`aemAssetPath or aemRepoId not found in metadata`)
-        logger.debug(JSON.stringify(aemImageMetadata, null, 2))
-        return errorResponse(404, "asset repo or path not found in metadata", logger)
-      }
+        // get the aem asset path and repo id for next steps
+        const aemAssetPath = aemImageMetadata['repo:path']
+        const aemRepoId = aemImageMetadata['repo:repositoryId']
 
-      // Put in request to kick off metadat processing
-      let assetPresignedUrl
-      try {
-        debuggerOutput(`getting presigned url for https://${aemRepoId}${aemAssetPath}`)
-        // Get presigned url for the image from AEM
-        assetPresignedUrl = await getAemAssetPresignedDownloadUrl(`https://${aemRepoId}`,aemAssetPath,params,logger)
-        debuggerOutput(`GOT presigned url ${assetPresignedUrl}`)
-
-        //if presigned url is not returned, return 500
-        if(typeof assetPresignedUrl === 'undefined'){
-          logger.error('presigned url pull failure')
-          return errorResponse(500, 'presigned url generation failure', logger)
+        if(typeof aemAssetPath === 'undefined' || typeof aemRepoId === 'undefined'){
+          logger.error(`aemAssetPath or aemRepoId not found in metadata`)
+          logger.debug(JSON.stringify(aemImageMetadata, null, 2))
+          return errorResponse(404, "asset repo or path not found in metadata", logger)
         }
-      } catch (error) {
-        logger.error(`presigned url pull failure ${error.message}`)
-        return errorResponse(500, `presigned url generation failure ${error.message}`, logger)
-      }
 
-      let submitManifestRequestCallResults
-      try {
-        debuggerOutput(`onAemProcComplete:getPhotoshopManifestForPresignedUrl ${assetPresignedUrl}`)
-        //debuggerOutput(JSON.stringify(params, null, 2))
-        params.throwIoEvent = true //throw an IO event for the manifest job completion
-        await sleepCscRequest(5000) //sleep for 5 seconds to allow the presigned url to be active
-        submitManifestRequestCallResults = await getPhotoshopManifestForPresignedUrl(assetPresignedUrl,params,logger)
+        // Put in request to kick off metadat processing
+        let assetPresignedUrl
+        try {
+          debuggerOutput(`getting presigned url for https://${aemRepoId}${aemAssetPath}`)
+          // Get presigned url for the image from AEM
+          assetPresignedUrl = await getAemAssetPresignedDownloadUrl(`https://${aemRepoId}`,aemAssetPath,params,logger)
+          debuggerOutput(`GOT presigned url ${assetPresignedUrl}`)
 
-        if(submitManifestRequestCallResults === undefined || submitManifestRequestCallResults === null){
-          logger.error('onAemProcComplete:getPhotoshopManifestForPresignedUrl failure')
-          return errorResponse(500, 'onAemProcComplete:getPhotoshopManifestForPresignedUrl ', logger)
+          //if presigned url is not returned, return 500
+          if(typeof assetPresignedUrl === 'undefined'){
+            logger.error('presigned url pull failure')
+            return errorResponse(500, 'presigned url generation failure', logger)
+          }
+        } catch (error) {
+          logger.error(`presigned url pull failure ${error.message}`)
+          return errorResponse(500, `presigned url generation failure ${error.message}`, logger)
         }
-        debuggerOutput(`onAemProcComplete:getPhotoshopManifestForPresignedUrl complete ${submitManifestRequestCallResults['_links'].self.href}`)
-        debuggerOutput(JSON.stringify(submitManifestRequestCallResults, null, 2))
 
-      } catch (error) {
-        logger.error('getPhotoshopManifestForPresignedUrl failure')
-        logger.error(JSON.stringify(error))
-        return errorResponse(500, 'getPhotoshopManifestForPresignedUrl failure', logger)
-      }
-      
-      let psApiJobId
-      try {
-        debuggerOutput(`getting ps api job id from the submit for manifest ${JSON.stringify(submitManifestRequestCallResults, null, 2)}`)
-        // log the jobId and asset data for mapping when the event returns
-        psApiJobId = submitManifestRequestCallResults['_links'].self.href.split('/').pop() //get the job id from the self link
-        debuggerOutput(`onAemProcComplete:submitManifestRequestCallResults complete psApiJobId = ${psApiJobId}`)
-      } catch (error) {
-        logger.error('preSignedCallResults failure')
-        return errorResponse(500, 'preSignedCallResults failure', logger)
-      }
-      
-      try {
-        debuggerOutput(`Setting state for the jobid ${psApiJobId}`)
-        const jobSecodaryData = {
-          aemHost:`https://${aemRepoId}`,
-          aemAssetPath: aemAssetPath,
-          aemAssetPresignedDownloadPath: assetPresignedUrl,
-          aemAssetSize: aemImageMetadata['repo:size'],
-          aemAssetUuid: aemImageMetadata['repo:assetId'],
-          aemAssetName: aemImageMetadata['repo:name'],
-          aemAssetMetaData: aemImageMetadata,
-          processPassCount:0,
-          processingComplete:false,
-          psApiJobId:psApiJobId
+        let submitManifestRequestCallResults
+        try {
+          debuggerOutput(`onAemProcComplete:getPhotoshopManifestForPresignedUrl ${assetPresignedUrl}`)
+          //debuggerOutput(JSON.stringify(params, null, 2))
+          params.throwIoEvent = true //throw an IO event for the manifest job completion
+          await sleepCscRequest(5000) //sleep for 5 seconds to allow the presigned url to be active
+          submitManifestRequestCallResults = await getPhotoshopManifestForPresignedUrl(assetPresignedUrl,params,logger)
+
+          if(submitManifestRequestCallResults === undefined || submitManifestRequestCallResults === null){
+            logger.error('onAemProcComplete:getPhotoshopManifestForPresignedUrl failure')
+            return errorResponse(500, 'onAemProcComplete:getPhotoshopManifestForPresignedUrl ', logger)
+          }
+          debuggerOutput(`onAemProcComplete:getPhotoshopManifestForPresignedUrl complete ${submitManifestRequestCallResults['_links'].self.href}`)
+          debuggerOutput(JSON.stringify(submitManifestRequestCallResults, null, 2))
+
+        } catch (error) {
+          logger.error('getPhotoshopManifestForPresignedUrl failure')
+          logger.error(JSON.stringify(error))
+          return errorResponse(500, 'getPhotoshopManifestForPresignedUrl failure', logger)
         }
-        const stateJob = await State.init()
-        const stateSave = await stateJob.put(psApiJobId,jobSecodaryData,{ ttl: 18000 }) //saved for 18 hours ish
-        debuggerOutput(`SET the state for the jobid ${psApiJobId} ${stateSave}`)
-
-        content.jobData = jobSecodaryData
-        content.jobId = psApiJobId
         
-      } catch (error) {
-        logger.error('state save failure')
-        return errorResponse(500, 'state save failure', logger)
-      }
+        let psApiJobId
+        try {
+          debuggerOutput(`getting ps api job id from the submit for manifest ${JSON.stringify(submitManifestRequestCallResults, null, 2)}`)
+          // log the jobId and asset data for mapping when the event returns
+          psApiJobId = submitManifestRequestCallResults['_links'].self.href.split('/').pop() //get the job id from the self link
+          debuggerOutput(`onAemProcComplete:submitManifestRequestCallResults complete psApiJobId = ${psApiJobId}`)
+        } catch (error) {
+          logger.error('preSignedCallResults failure')
+          return errorResponse(500, 'preSignedCallResults failure', logger)
+        }
+        
+        try {
+          debuggerOutput(`Setting state for the jobid ${psApiJobId}`)
+          const jobSecodaryData = {
+            aemHost:`https://${aemRepoId}`,
+            aemAssetPath: aemAssetPath,
+            aemAssetPresignedDownloadPath: assetPresignedUrl,
+            aemAssetSize: aemImageMetadata['repo:size'],
+            aemAssetUuid: aemImageMetadata['repo:assetId'],
+            aemAssetName: aemImageMetadata['repo:name'],
+            aemAssetMetaData: aemImageMetadata,
+            processPassCount:0,
+            processingComplete:false,
+            psApiJobId:psApiJobId
+          }
+          const stateJob = await State.init()
+          const stateSave = await stateJob.put(psApiJobId,jobSecodaryData,{ ttl: 18000 }) //saved for 18 hours ish
+          debuggerOutput(`SET the state for the jobid ${psApiJobId} ${stateSave}`)
 
-    }else{
-      if(typeof params.data.repositoryMetadata === 'undefined'){
-        debuggerOutput('No repository metadata found')
-        content.status = 'skipped - no metadata found'
-      }else if(params.data.repositoryMetadata['dc:format'] === 'image/vnd.adobe.photoshop'){
-        debuggerOutput(`Not a psd file, skipping processing ${params.data.repositoryMetadata['dc:format']}`)
-        content.status = `skipped - no metadata found ${params.data.repositoryMetadata['dc:format']}`
+          content.jobData = jobSecodaryData
+          content.jobId = psApiJobId
+          
+        } catch (error) {
+          logger.error('state save failure')
+          return errorResponse(500, 'state save failure', logger)
+        }
+
+      }else{
+        if(typeof params.data.repositoryMetadata === 'undefined'){
+          debuggerOutput('No repository metadata found')
+          content.status = 'skipped - no metadata found'
+        }else if(params.data.repositoryMetadata['dc:format'] === 'image/vnd.adobe.photoshop'){
+          debuggerOutput(`Not a psd file, skipping processing ${params.data.repositoryMetadata['dc:format']}`)
+          content.status = `skipped - no metadata found ${params.data.repositoryMetadata['dc:format']}`
+        }
       }
+    }else{
+      debuggerOutput('Not an asset processing complete event')
+      content.status = 'skipped - not an asset processing complete event'
     }
 
     const response = {
